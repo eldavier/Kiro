@@ -10,6 +10,11 @@ function! codeium#command#BrowserCommand() abort
   endif
 endfunction
 
+function! s:Uuid() abort
+  if has('win32')
+    return system('powershell -Command "[guid]::NewGuid().Guid"')
+  elseif executable('uuidgen')
+    return system('uuidgen')
 function! codeium#command#XdgConfigDir() abort
   let config_dir = $XDG_CONFIG_HOME
   if empty(config_dir)
@@ -93,6 +98,7 @@ function! s:commands.Auth(...) abort
   while empty(api_key) && tries < 3
     let command = 'curl -sSL ' . register_user_url . ' ' .
           \ '--header "Content-Type: application/json" ' .
+          \ '--data ' . '"' . json_encode({'firebase_id_token': auth_token})->substitute('"', '\\"', 'g') . '"'
           \ '--data ' . shellescape(json_encode({'firebase_id_token': auth_token}))
     let response = system(command)
     let curl_ssl_error = 'The revocation function was unable to check revocation '
