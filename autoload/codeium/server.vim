@@ -152,7 +152,7 @@ function! codeium#server#Request(type, data, ...) abort
       \ '/exa.language_server_pb.LanguageServerService/' . a:type
   let data = json_encode(a:data)
   let args = [
-              \ 'curl', '-L', uri,
+              \ 'curl', uri,
               \ '--header', 'Content-Type: application/json',
               \ '-d@-'
               \ ]
