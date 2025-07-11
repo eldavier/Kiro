@@ -18,3 +18,8 @@ build/lib/policies/policyData.jsonc @joshspicer @rebornix @joaomoreno @pwang347 
 # this is only about the final API, not about proposed API changes
 src/vscode-dts/vscode.d.ts @jrieken @mjbvz @alexr00
 src/vs/workbench/services/extensions/common/extensionPoints.json @jrieken @mjbvz @alexr00
+# CODEOWNERS file for Kiro repository
+
+# Default owners for all files
+# These teams will be automatically requested for review on all PRs
+* @kirodotdev/kiro-dev @kirodotdev/kiro-support
