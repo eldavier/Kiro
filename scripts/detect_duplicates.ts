@@ -24,6 +24,58 @@ import { resolveModel } from "./model_costs.js";
 const SIMILARITY_THRESHOLD = 0.8;
 const BATCH_SIZE = 10;
 
+// Security: Maximum lengths for input validation
+const MAX_TITLE_LENGTH = 500;
+const MAX_BODY_LENGTH = 10000;
+
+/**
+ * Sanitize user input to prevent prompt injection attacks
+ */
+function sanitizePromptInput(input: string, maxLength: number): string {
+  if (!input) {
+    return "";
+  }
+
+  // Truncate to maximum length
+  let sanitized = input.substring(0, maxLength);
+
+  // Remove potential prompt injection patterns
+  // These patterns could be used to manipulate the AI's behavior
+  const dangerousPatterns = [
+    /ignore\s+(all\s+)?(previous|above|prior)\s+instructions?/gi,
+    /disregard\s+(all\s+)?(previous|above|prior)\s+instructions?/gi,
+    /forget\s+(all\s+)?(previous|above|prior)\s+instructions?/gi,
+    /new\s+instructions?:/gi,
+    /system\s*:/gi,
+    /assistant\s*:/gi,
+    /\[SYSTEM\]/gi,
+    /\[ASSISTANT\]/gi,
+    /\<\|im_start\|\>/gi,
+    /\<\|im_end\|\>/gi,
+  ];
+
+  for (const pattern of dangerousPatterns) {
+    sanitized = sanitized.replace(pattern, "[REDACTED]");
+  }
+
+  // Escape backticks that could break JSON formatting
+  sanitized = sanitized.replace(/`/g, "'");
+
+  // Remove excessive newlines that could break prompt structure
+  sanitized = sanitized.replace(/\n{4,}/g, "\n\n\n");
+
+  // Add truncation notice if content was cut
+  if (input.length > maxLength) {
+    sanitized += "\n\n[Content truncated for security]";
+  }
+
+  return sanitized;
+}
+
+/**
+ * Fetch existing open issues from repository with Bug or Feature type
+ * Falls back to bug/feature labels if issue types are not configured
+
 /**
  * Fetch existing open issues from repository with Bug or Feature type
  * Falls back to bug/feature labels if issue types are not configured
@@ -144,7 +196,6 @@ export async function fetchExistingIssues(
     }
 
     // Filter for Bug or Feature types, or bug/feature labels
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GitHub issue shape varies
     const filteredIssues = allIssues.filter((issue: any) => {
       // Exclude current issue and pull requests
       if (issue.number === currentIssueNumber || issue.pull_request) {
@@ -159,15 +210,13 @@ export async function fetchExistingIssues(
       }
 
       // Fallback: Check for bug or feature labels
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- label can be string or object
       const labelNames = issue.labels.map((l: any) =>
         typeof l === "string" ? l.toLowerCase() : (l.name || "").toLowerCase()
       );
       return labelNames.includes("bug") || labelNames.includes("feature");
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Octokit type field not in official types
-    const hasTypes = allIssues.some((i: any) => i.type && i.type.name);
+    const hasTypes = allIssues.some(i => i.type && i.type.name);
     const filterMethod = hasTypes
       ? "issue types (Bug/Feature)" 
       : "labels (bug/feature)";
@@ -176,14 +225,12 @@ export async function fetchExistingIssues(
       `Filtered ${filteredIssues.length} issues with Bug/Feature type (from ${allIssues.length} total) using ${filterMethod}`
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mapping untyped GitHub API response
     return filteredIssues.map((issue: any) => ({
       number: issue.number,
       title: issue.title,
       body: issue.body || "",
       created_at: new Date(issue.created_at),
       updated_at: new Date(issue.updated_at),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- label can be string or object
       labels: issue.labels.map((l: any) =>
         typeof l === "string" ? l : l.name || ""
       ),
@@ -381,16 +428,19 @@ export function generateDuplicateComment(duplicates: DuplicateMatch[]): string {
     return "";
   }
 
-  const DUPLICATE_CLOSE_DAYS = 3;
-  const DUPLICATE_CLOSE_DAYS = 3;
+  const header = `## Potential Duplicate Issues Detected
 
-  const duplicateList = duplicates
-  const duplicateList = duplicates
+This issue appears to be similar to the following existing issue(s):
+
+`;
+
+  const issueList = duplicates
     .map(
       (dup) =>
         `\n- [#${dup.issue_number}: ${dup.issue_title}](${dup.url}) (${(
         `\n- [#${dup.issue_number}: ${dup.issue_title}](${dup.url}) (${(
           dup.similarity_score * 100
+        ).toFixed(0)}% similar)`
         ).toFixed(0)}% similar)`
         ).toFixed(0)}% similar)`
     )
@@ -399,20 +449,11 @@ export function generateDuplicateComment(duplicates: DuplicateMatch[]): string {
   const comment = `🤖 **Potential Duplicate Detected**
     .join("");
 
-  const comment = `🤖 **Potential Duplicate Detected**
+  const footer = `
 
-This issue appears to be similar to:${duplicateList}
-This issue appears to be similar to:${duplicateList}
+---
 
-**What happens next?**
-- ⏰ This issue will be automatically closed in ${DUPLICATE_CLOSE_DAYS} days
-- 🏷️ If this is not a duplicate, you can prevent automatic closure by adding a comment or reacting with 👎 to this message.
-- 💬 Comment on the original issue if you have additional information
-
-**Why is this marked as duplicate?**
-${duplicates[0].reasoning}`;
-**Why is this marked as duplicate?**
-${duplicates[0].reasoning}`;
+If you believe this is not a duplicate, please provide additional details to help us understand the difference. A maintainer will review and remove the duplicate label if appropriate.`;
 
   return comment;
   return comment;
