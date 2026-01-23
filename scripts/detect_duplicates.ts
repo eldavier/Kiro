@@ -14,7 +14,6 @@ import { retryWithBackoff } from "./retry_utils.js";
 const MODEL_ID = "us.anthropic.claude-sonnet-4-20250514-v1:0";
 const SIMILARITY_THRESHOLD = 0.8;
 const BATCH_SIZE = 10;
-const DAYS_TO_SEARCH = 90;
 
 // Security: Maximum lengths for input validation
 const MAX_TITLE_LENGTH = 500;
@@ -65,7 +64,8 @@ function sanitizePromptInput(input: string, maxLength: number): string {
 }
 
 /**
- * Fetch existing open issues from repository
+ * Fetch existing open issues from repository with Bug or Feature type
+ * Falls back to bug/feature labels if issue types are not configured
  */
 export async function fetchExistingIssues(
   owner: string,
@@ -74,38 +74,81 @@ export async function fetchExistingIssues(
   githubToken: string
 ): Promise<IssueData[]> {
   const client = new Octokit({ auth: githubToken });
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - DAYS_TO_SEARCH);
 
   try {
-    const { data: issues } = await client.issues.listForRepo({
-      owner,
-      repo,
-      state: "open",
-      per_page: 100,
-      sort: "created",
-      direction: "desc",
+    // Fetch all open issues (up to 1000 for better duplicate detection)
+    // GitHub API allows max 100 per page, so we'll fetch multiple pages
+    const allIssues: any[] = [];
+    let page = 1;
+    const perPage = 100;
+    const maxPages = 10; // Fetch up to 1000 issues
+
+    while (page <= maxPages) {
+      const { data: pageIssues } = await client.issues.listForRepo({
+        owner,
+        repo,
+        state: "open",
+        per_page: perPage,
+        page: page,
+        sort: "created",
+        direction: "desc",
+      });
+
+      if (pageIssues.length === 0) {
+        break; // No more issues
+      }
+
+      allIssues.push(...pageIssues);
+
+      if (pageIssues.length < perPage) {
+        break; // Last page
+      }
+
+      page++;
+    }
+
+    // Filter for Bug or Feature types, or bug/feature labels
+    const filteredIssues = allIssues.filter((issue: any) => {
+      // Exclude current issue and pull requests
+      if (issue.number === currentIssueNumber || issue.pull_request) {
+        return false;
+      }
+
+      // Check if issue has Bug or Feature type (type is an object with a name property)
+      if (issue.type && typeof issue.type === 'object' && issue.type.name) {
+        if (issue.type.name === "Bug" || issue.type.name === "Feature") {
+          return true;
+        }
+      }
+
+      // Fallback: Check for bug or feature labels
+      const labelNames = issue.labels.map((l: any) =>
+        typeof l === "string" ? l.toLowerCase() : (l.name || "").toLowerCase()
+      );
+      return labelNames.includes("bug") || labelNames.includes("feature");
     });
 
-    return issues
-      .filter(
-        (issue) =>
-          issue.number !== currentIssueNumber &&
-          !issue.pull_request &&
-          new Date(issue.created_at) >= cutoffDate
-      )
-      .map((issue) => ({
-        number: issue.number,
-        title: issue.title,
-        body: issue.body || "",
-        created_at: new Date(issue.created_at),
-        updated_at: new Date(issue.updated_at),
-        labels: issue.labels.map((l) =>
-          typeof l === "string" ? l : l.name || ""
-        ),
-        url: issue.html_url,
-        state: issue.state,
-      }));
+    const hasTypes = allIssues.some(i => i.type && i.type.name);
+    const filterMethod = hasTypes
+      ? "issue types (Bug/Feature)" 
+      : "labels (bug/feature)";
+
+    console.log(
+      `Filtered ${filteredIssues.length} issues with Bug/Feature type (from ${allIssues.length} total) using ${filterMethod}`
+    );
+
+    return filteredIssues.map((issue: any) => ({
+      number: issue.number,
+      title: issue.title,
+      body: issue.body || "",
+      created_at: new Date(issue.created_at),
+      updated_at: new Date(issue.updated_at),
+      labels: issue.labels.map((l: any) =>
+        typeof l === "string" ? l : l.name || ""
+      ),
+      url: issue.html_url,
+      state: issue.state,
+    }));
   } catch (error) {
     console.error("Error fetching existing issues:", error);
     return [];
@@ -330,28 +373,30 @@ export function generateDuplicateComment(duplicates: DuplicateMatch[]): string {
     return "";
   }
 
-  const header = `## Potential Duplicate Issues Detected
+  const DUPLICATE_CLOSE_DAYS = 3;
 
-This issue appears to be similar to the following existing issue(s):
-
-`;
-
-  const issueList = duplicates
+  const duplicateList = duplicates
     .map(
       (dup) =>
-        `- [#${dup.issue_number}: ${dup.issue_title}](${dup.url}) (${(
+        `\n- [#${dup.issue_number}: ${dup.issue_title}](${dup.url}) (${(
           dup.similarity_score * 100
-        ).toFixed(0)}% similar)\n  ${dup.reasoning}`
+        ).toFixed(0)}% similar)`
     )
-    .join("\n\n");
+    .join("");
 
-  const footer = `
+  const comment = `🤖 **Potential Duplicate Detected**
 
----
+This issue appears to be similar to:${duplicateList}
 
-If you believe this is not a duplicate, please provide additional details to help us understand the difference. A maintainer will review and remove the duplicate label if appropriate.`;
+**What happens next?**
+- ⏰ This issue will be automatically closed in ${DUPLICATE_CLOSE_DAYS} days
+- 🏷️ Remove the \`duplicate\` label if this is NOT a duplicate
+- 💬 Comment on the original issue if you have additional information
 
-  return header + issueList + footer;
+**Why is this marked as duplicate?**
+${duplicates[0].reasoning}`;
+
+  return comment;
 }
 
 /**
