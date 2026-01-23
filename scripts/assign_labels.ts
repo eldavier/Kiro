@@ -92,7 +92,7 @@ export async function assignLabels(
 }
 
 /**
- * Add duplicate label to an issue
+ * Add duplicate label to an issue and remove pending-triage label
  */
 export async function addDuplicateLabel(
   owner: string,
@@ -105,6 +105,7 @@ export async function addDuplicateLabel(
 
     console.log(`Adding duplicate label to issue #${issueNumber}`);
 
+    // Add duplicate label
     await retryWithBackoff(async () => {
       await client.issues.addLabels({
         owner,
@@ -115,6 +116,24 @@ export async function addDuplicateLabel(
     });
 
     console.log(`Successfully added duplicate label to issue #${issueNumber}`);
+
+    // Remove pending-triage label
+    try {
+      console.log(`Removing pending-triage label from issue #${issueNumber}`);
+      await retryWithBackoff(async () => {
+        await client.issues.removeLabel({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          name: "pending-triage",
+        });
+      });
+      console.log(`Successfully removed pending-triage label from issue #${issueNumber}`);
+    } catch (error) {
+      // Label might not exist on the issue, which is fine
+      console.log(`Note: Could not remove pending-triage label (may not exist): ${error}`);
+    }
+
     return true;
   } catch (error) {
     console.error(

@@ -107,57 +107,11 @@ async function main() {
 
     const taxonomy = new LabelTaxonomy();
 
-    // Step 1: Classify issue using Bedrock
-    console.log("Step 1: Classifying issue with AI provider...");
-    let classification;
-    try {
-      classification = await classifyIssue(issueTitle, issueBody, taxonomy);
-
-      if (classification.error) {
-        console.error(`Classification error: ${classification.error}`);
-        console.log("Continuing with manual triage (pending-triage label only)");
-        logError(summary.errors, "classification", classification.error, issueNumber);
-      } else {
-        console.log(
-          `Recommended labels: ${classification.recommended_labels.join(", ")}`
-        );
-        console.log(`Reasoning: ${classification.reasoning}`);
-      }
-    } catch (error) {
-      console.error("Classification failed:", error);
-      logError(summary.errors, "classification", error, issueNumber);
-      classification = {
-        recommended_labels: [],
-        confidence_scores: {},
-        reasoning: "",
-        error: String(error),
-      };
-    }
-
-    // Step 2: Assign labels
-    console.log("\nStep 2: Assigning labels...");
-    try {
-      const labelsAssigned = await assignLabels(
-        owner,
-        repo,
-        issueNumber,
-        classification.recommended_labels,
-        githubToken,
-        taxonomy
-      );
-
-      if (!labelsAssigned) {
-        console.error("Failed to assign labels, but continuing...");
-        logError(summary.errors, "label_assignment", "Failed to assign labels", issueNumber);
-      }
-    } catch (error) {
-      console.error("Label assignment failed:", error);
-      logError(summary.errors, "label_assignment", error, issueNumber);
-    }
-
-    // Step 3: Detect duplicates
-    console.log("\nStep 3: Detecting duplicate issues...");
+    // Step 1: Detect duplicates first
+    console.log("Step 1: Detecting duplicate issues...");
     let duplicates = [];
+    let isDuplicate = false;
+    
     try {
       duplicates = await detectDuplicates(
         issueTitle,
@@ -170,9 +124,10 @@ async function main() {
 
       if (duplicates.length > 0) {
         console.log(`Found ${duplicates.length} potential duplicate(s)`);
+        isDuplicate = true;
 
         // Post duplicate comment
-        console.log("\nStep 4: Posting duplicate comment...");
+        console.log("\nStep 2: Posting duplicate comment...");
         try {
           const commentPosted = await postDuplicateComment(
             owner,
@@ -183,10 +138,11 @@ async function main() {
           );
 
           if (commentPosted) {
-            // Add duplicate label
-            console.log("\nStep 5: Adding duplicate label...");
+            // Add duplicate label (and remove pending-triage)
+            console.log("\nStep 3: Adding duplicate label...");
             try {
               await addDuplicateLabel(owner, repo, issueNumber, githubToken);
+              console.log("Skipping classification and label assignment for duplicate issue");
             } catch (error) {
               console.error("Failed to add duplicate label:", error);
               logError(summary.errors, "duplicate_label", error, issueNumber);
@@ -202,6 +158,57 @@ async function main() {
     } catch (error) {
       console.error("Duplicate detection failed:", error);
       logError(summary.errors, "duplicate_detection", error, issueNumber);
+    }
+
+    // Only classify and assign labels if NOT a duplicate
+    if (!isDuplicate) {
+      // Step 2 (or 4): Classify issue using Bedrock
+      console.log("\nStep 2: Classifying issue with AWS Bedrock...");
+      let classification;
+      try {
+        classification = await classifyIssue(issueTitle, issueBody, taxonomy);
+
+        if (classification.error) {
+          console.error(`Classification error: ${classification.error}`);
+          console.log("Continuing with manual triage (pending-triage label only)");
+          logError(summary.errors, "classification", classification.error, issueNumber);
+        } else {
+          console.log(
+            `Recommended labels: ${classification.recommended_labels.join(", ")}`
+          );
+          console.log(`Reasoning: ${classification.reasoning}`);
+        }
+      } catch (error) {
+        console.error("Classification failed:", error);
+        logError(summary.errors, "classification", error, issueNumber);
+        classification = {
+          recommended_labels: [],
+          confidence_scores: {},
+          reasoning: "",
+          error: String(error),
+        };
+      }
+
+      // Step 3 (or 5): Assign labels
+      console.log("\nStep 3: Assigning labels...");
+      try {
+        const labelsAssigned = await assignLabels(
+          owner,
+          repo,
+          issueNumber,
+          classification.recommended_labels,
+          githubToken,
+          taxonomy
+        );
+
+        if (!labelsAssigned) {
+          console.error("Failed to assign labels, but continuing...");
+          logError(summary.errors, "label_assignment", "Failed to assign labels", issueNumber);
+        }
+      } catch (error) {
+        console.error("Label assignment failed:", error);
+        logError(summary.errors, "label_assignment", error, issueNumber);
+      }
     }
 
     console.log("\n=== Triage Complete ===\n");
