@@ -189,6 +189,26 @@ async function main() {
           error: String(error),
         };
       }
+        if (classification.error) {
+          console.error(`Classification error: ${classification.error}`);
+          console.log("Continuing with manual triage (pending-triage label only)");
+          logError(summary.errors, "classification", classification.error, issueNumber);
+        } else {
+          console.log(
+            `Recommended labels: ${classification.recommended_labels.join(", ")}`
+          );
+          console.log(`Reasoning: ${classification.reasoning}`);
+        }
+      } catch (error) {
+        console.error("Classification failed:", error);
+        logError(summary.errors, "classification", error, issueNumber);
+        classification = {
+          recommended_labels: [],
+          confidence_scores: {},
+          reasoning: "",
+          error: String(error),
+        };
+      }
 
       // Step 3: Assign labels
       console.log("\nStep 3: Assigning labels...");

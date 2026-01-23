@@ -69,6 +69,8 @@ function sanitizePromptInput(input: string, maxLength: number): string {
 /**
  * Fetch existing open issues from repository with Bug or Feature type
  * Falls back to bug/feature labels if issue types are not configured
+ * Fetch existing open issues from repository with Bug or Feature type
+ * Falls back to bug/feature labels if issue types are not configured
  */
 export async function fetchExistingIssues(
   owner: string,
@@ -110,6 +112,61 @@ export async function fetchExistingIssues(
       direction: "desc",
     });
 
+      if (pageIssues.length === 0) {
+        break; // No more issues
+      }
+
+      allIssues.push(...pageIssues);
+
+      if (pageIssues.length < perPage) {
+        break; // Last page
+      }
+
+      page++;
+    }
+
+    // Filter for Bug or Feature types, or bug/feature labels
+    const filteredIssues = allIssues.filter((issue: any) => {
+      // Exclude current issue and pull requests
+      if (issue.number === currentIssueNumber || issue.pull_request) {
+        return false;
+      }
+
+      // Check if issue has Bug or Feature type (type is an object with a name property)
+      if (issue.type && typeof issue.type === 'object' && issue.type.name) {
+        if (issue.type.name === "Bug" || issue.type.name === "Feature") {
+          return true;
+        }
+      }
+
+      // Fallback: Check for bug or feature labels
+      const labelNames = issue.labels.map((l: any) =>
+        typeof l === "string" ? l.toLowerCase() : (l.name || "").toLowerCase()
+      );
+      return labelNames.includes("bug") || labelNames.includes("feature");
+    });
+
+    const hasTypes = allIssues.some(i => i.type && i.type.name);
+    const filterMethod = hasTypes
+      ? "issue types (Bug/Feature)" 
+      : "labels (bug/feature)";
+
+    console.log(
+      `Filtered ${filteredIssues.length} issues with Bug/Feature type (from ${allIssues.length} total) using ${filterMethod}`
+    );
+
+    return filteredIssues.map((issue: any) => ({
+      number: issue.number,
+      title: issue.title,
+      body: issue.body || "",
+      created_at: new Date(issue.created_at),
+      updated_at: new Date(issue.updated_at),
+      labels: issue.labels.map((l: any) =>
+        typeof l === "string" ? l : l.name || ""
+      ),
+      url: issue.html_url,
+      state: issue.state,
+    }));
       if (pageIssues.length === 0) {
         break; // No more issues
       }
@@ -357,18 +414,26 @@ export function generateDuplicateComment(duplicates: DuplicateMatch[]): string {
   }
 
   const DUPLICATE_CLOSE_DAYS = 3;
+  const DUPLICATE_CLOSE_DAYS = 3;
 
+  const duplicateList = duplicates
   const duplicateList = duplicates
     .map(
       (dup) =>
         `\n- [#${dup.issue_number}: ${dup.issue_title}](${dup.url}) (${(
+        `\n- [#${dup.issue_number}: ${dup.issue_title}](${dup.url}) (${(
           dup.similarity_score * 100
+        ).toFixed(0)}% similar)`
         ).toFixed(0)}% similar)`
     )
     .join("");
 
   const comment = `🤖 **Potential Duplicate Detected**
+    .join("");
 
+  const comment = `🤖 **Potential Duplicate Detected**
+
+This issue appears to be similar to:${duplicateList}
 This issue appears to be similar to:${duplicateList}
 
 **What happens next?**
@@ -378,7 +443,10 @@ This issue appears to be similar to:${duplicateList}
 
 **Why is this marked as duplicate?**
 ${duplicates[0].reasoning}`;
+**Why is this marked as duplicate?**
+${duplicates[0].reasoning}`;
 
+  return comment;
   return comment;
 }
 
