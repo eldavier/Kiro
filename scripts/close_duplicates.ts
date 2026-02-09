@@ -51,14 +51,14 @@ async function getDuplicateLabelDate(
 }
 
 /**
- * Find original issue from duplicate comment
+ * Find original issue from duplicate comment and check for user responses
  */
-async function findOriginalIssue(
+async function findOriginalIssueAndCheckResponses(
   client: Octokit,
   owner: string,
   repo: string,
   issueNumber: number
-): Promise<number | null> {
+): Promise<{ originalIssue: number | null; hasUserResponse: boolean }> {
   try {
     const { data: comments } = await client.issues.listComments({
       owner,
@@ -69,24 +69,105 @@ async function findOriginalIssue(
 
     // Look for our duplicate detection comment
     const duplicateComment = comments.find((comment) =>
-      comment.body?.includes("Potential Duplicate Issues Detected")
+      comment.body?.includes("Potential Duplicate Detected")
     );
 
-    if (duplicateComment && duplicateComment.body) {
+    if (!duplicateComment) {
+      return { originalIssue: null, hasUserResponse: false };
+    }
+
+    let originalIssue: number | null = null;
+    if (duplicateComment.body) {
       // Extract first issue number from the comment
       const match = duplicateComment.body.match(/#(\d+):/);
       if (match) {
-        return parseInt(match[1]);
+        originalIssue = parseInt(match[1]);
       }
     }
 
-    return null;
+    // Check for user responses after the duplicate comment
+    const duplicateCommentDate = new Date(duplicateComment.created_at);
+    const hasCommentAfter = comments.some(
+      (comment) =>
+        comment.id !== duplicateComment.id &&
+        new Date(comment.created_at) > duplicateCommentDate
+    );
+
+    if (hasCommentAfter) {
+      console.log(`  User commented after duplicate detection`);
+      return { originalIssue, hasUserResponse: true };
+    }
+
+    // Check for 👎 reactions on the duplicate comment
+    try {
+      const { data: reactions } = await client.reactions.listForIssueComment({
+        owner,
+        repo,
+        comment_id: duplicateComment.id,
+        per_page: 100,
+      });
+
+      const hasThumbsDown = reactions.some(
+        (reaction) => reaction.content === "-1"
+      );
+
+      if (hasThumbsDown) {
+        console.log(`  User reacted with 👎 to duplicate detection`);
+        return { originalIssue, hasUserResponse: true };
+      }
+    } catch (error) {
+      console.error(`  Error checking reactions:`, error);
+      // Continue without reaction check
+    }
+
+    return { originalIssue, hasUserResponse: false };
   } catch (error) {
     console.error(
       `Error finding original issue for #${issueNumber}:`,
       error
     );
-    return null;
+    return { originalIssue: null, hasUserResponse: false };
+  }
+}
+
+/**
+ * Remove duplicate label and add pending-triage label
+ */
+async function relabelIssue(
+  client: Octokit,
+  owner: string,
+  repo: string,
+  issueNumber: number
+): Promise<boolean> {
+  try {
+    // Remove duplicate label
+    await retryWithBackoff(async () => {
+      await client.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        name: "duplicate",
+      });
+    });
+
+    console.log(`  ✓ Removed 'duplicate' label`);
+
+    // Add pending-triage label
+    await retryWithBackoff(async () => {
+      await client.issues.addLabels({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        labels: ["pending-triage"],
+      });
+    });
+
+    console.log(`  ✓ Added 'pending-triage' label`);
+
+    return true;
+  } catch (error) {
+    console.error(`  Error relabeling issue #${issueNumber}:`, error);
+    return false;
   }
 }
 
@@ -186,6 +267,7 @@ async function main() {
     const now = new Date();
     const thresholdMs = DAYS_THRESHOLD * 24 * 60 * 60 * 1000;
     let closedCount = 0;
+    let relabeledCount = 0;
     let skippedCount = 0;
 
     for (const issue of issues) {
@@ -227,13 +309,35 @@ async function main() {
       console.log(`  Label age: ${ageDays.toFixed(1)} days`);
 
       if (ageMs >= thresholdMs) {
-        // Find original issue
-        const originalIssue = await findOriginalIssue(
-          client,
-          owner,
-          repo,
-          issue.number
-        );
+        // Find original issue and check for user responses
+        const { originalIssue, hasUserResponse } =
+          await findOriginalIssueAndCheckResponses(
+            client,
+            owner,
+            repo,
+            issue.number
+          );
+
+        if (hasUserResponse) {
+          console.log(`  User responded - relabeling issue`);
+          
+          // Remove duplicate label and add pending-triage
+          const relabeled = await relabelIssue(
+            client,
+            owner,
+            repo,
+            issue.number
+          );
+
+          if (relabeled) {
+            console.log(`  ✓ Issue relabeled for maintainer review`);
+            relabeledCount++;
+          } else {
+            skippedCount++;
+          }
+          
+          continue;
+        }
 
         // Close the issue
         const closed = await closeDuplicateIssue(
@@ -255,6 +359,7 @@ async function main() {
 
     console.log(`\n=== Summary ===`);
     console.log(`Closed: ${closedCount}`);
+    console.log(`Relabeled: ${relabeledCount}`);
     console.log(`Skipped: ${skippedCount}`);
     console.log(`Total: ${issues.length}\n`);
 
