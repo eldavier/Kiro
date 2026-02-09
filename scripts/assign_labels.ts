@@ -14,6 +14,9 @@ function createGitHubClient(token: string): Octokit {
   return new Octokit({ auth: token });
 }
 
+// Maximum number of labels to assign (excluding pending-triage)
+const MAX_LABELS = 3;
+
 /**
  * Validate labels against taxonomy
  */
@@ -34,7 +37,14 @@ export function validateLabels(
     console.warn(`Filtered out invalid labels: ${invalidLabels.join(", ")}`);
   }
 
-  return validLabels;
+  // Limit to MAX_LABELS
+  const limitedLabels = validLabels.slice(0, MAX_LABELS);
+  
+  if (validLabels.length > MAX_LABELS) {
+    console.warn(`Limited labels from ${validLabels.length} to ${MAX_LABELS}: ${limitedLabels.join(", ")}`);
+  }
+
+  return limitedLabels;
 }
 
 /**
