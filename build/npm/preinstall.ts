@@ -60,7 +60,14 @@ if (process.arch !== os.arch()) {
 function hasSupportedVisualStudioVersion() {
 	// Translated over from
 	// https://source.chromium.org/chromium/chromium/src/+/master:build/vs_toolchain.py;l=140-175
-	const supportedVersions = ['2022', '2019'];
+	const supportedVersions = ['2026', '2022', '2019'];
+
+	// Map year to internal version folder name (VS 2026 uses '18' as folder name)
+	const versionFolderMap: Record<string, string[]> = {
+		'2026': ['2026', '18'],
+		'2022': ['2022'],
+		'2019': ['2019'],
+	};
 
 	const availableVersions = [];
 	for (const version of supportedVersions) {
@@ -76,21 +83,28 @@ function hasSupportedVisualStudioVersion() {
 		const programFiles64Path = process.env['ProgramFiles'];
 
 		const vsTypes = ['Enterprise', 'Professional', 'Community', 'Preview', 'BuildTools', 'IntPreview'];
-		if (programFiles64Path) {
-			vsPath = `${programFiles64Path}/Microsoft Visual Studio/${version}`;
-			if (vsTypes.some(vsType => fs.existsSync(path.join(vsPath!, vsType)))) {
-				availableVersions.push(version);
-				break;
+		const folders = versionFolderMap[version] || [version];
+		let found = false;
+		for (const folder of folders) {
+			if (programFiles64Path) {
+				vsPath = `${programFiles64Path}/Microsoft Visual Studio/${folder}`;
+				if (vsTypes.some(vsType => fs.existsSync(path.join(vsPath!, vsType)))) {
+					availableVersions.push(version);
+					found = true;
+					break;
+				}
 			}
-		}
 
-		if (programFiles86Path) {
-			vsPath = `${programFiles86Path}/Microsoft Visual Studio/${version}`;
-			if (vsTypes.some(vsType => fs.existsSync(path.join(vsPath!, vsType)))) {
-				availableVersions.push(version);
-				break;
+			if (programFiles86Path) {
+				vsPath = `${programFiles86Path}/Microsoft Visual Studio/${folder}`;
+				if (vsTypes.some(vsType => fs.existsSync(path.join(vsPath!, vsType)))) {
+					availableVersions.push(version);
+					found = true;
+					break;
+				}
 			}
 		}
+		if (found) { break; }
 	}
 
 	return availableVersions.length;
