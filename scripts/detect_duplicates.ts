@@ -390,7 +390,7 @@ This issue appears to be similar to:${duplicateList}
 
 **What happens next?**
 - ⏰ This issue will be automatically closed in ${DUPLICATE_CLOSE_DAYS} days
-- 🏷️ Remove the \`duplicate\` label if this is NOT a duplicate
+- 🏷️ If this is not a duplicate, you can prevent automatic closure by adding a comment or reacting with 👎 to this message.
 - 💬 Comment on the original issue if you have additional information
 
 **Why is this marked as duplicate?**
