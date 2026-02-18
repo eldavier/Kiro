@@ -2,10 +2,6 @@ name: Duplicate Dispute Handler
 
 # Triggers when users dispute a duplicate detection by:
 # 1. Commenting on an issue with 'duplicate' label
-<<<<<<< HEAD
-=======
-# 2. Reacting with 👎 to a comment
->>>>>>> c61724199cd (ci: add GitHub workflows for duplicate issue dispute handling)
 
 on:
   issue_comment:
@@ -135,4 +131,3 @@ jobs:
           echo "Status: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
 =======
           echo "Status: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
->>>>>>> c61724199cd (ci: add GitHub workflows for duplicate issue dispute handling)
