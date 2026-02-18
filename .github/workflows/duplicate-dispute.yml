@@ -2,7 +2,6 @@ name: Duplicate Dispute Handler
 
 # Triggers when users dispute a duplicate detection by:
 # 1. Commenting on an issue with 'duplicate' label
-# 2. Reacting with 👎 to a comment
 
 on:
   issue_comment:

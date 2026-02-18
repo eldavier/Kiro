@@ -3,7 +3,8 @@
  * Orchestrates classification, labeling, and duplicate detection
  */
 
-import { LabelTaxonomy } from "./data_models.js";
+import { Octokit } from "@octokit/rest";
+import { LabelTaxonomy, ClassificationResult } from "./data_models.js";
 import { classifyIssue } from "./bedrock_classifier.js";
 import { assignLabels, addDuplicateLabel } from "./assign_labels.js";
 import {
@@ -107,7 +108,7 @@ async function main() {
 
     const taxonomy = new LabelTaxonomy();
 
-    // Step 1: Detect duplicates first
+    // Step 1: Detect duplicates
     console.log("Step 1: Detecting duplicate issues...");
     let duplicates = [];
     let isDuplicate = false;
@@ -162,7 +163,7 @@ async function main() {
 
     // Only classify and assign labels if NOT a duplicate
     if (!isDuplicate) {
-      // Step 2 (or 4): Classify issue using Bedrock
+      // Step 2: Classify issue using Bedrock
       console.log("\nStep 2: Classifying issue with AWS Bedrock...");
       let classification;
       try {
@@ -189,7 +190,7 @@ async function main() {
         };
       }
 
-      // Step 3 (or 5): Assign labels
+      // Step 3: Assign labels
       console.log("\nStep 3: Assigning labels...");
       try {
         const labelsAssigned = await assignLabels(
@@ -208,6 +209,24 @@ async function main() {
       } catch (error) {
         console.error("Label assignment failed:", error);
         logError(summary.errors, "label_assignment", error, issueNumber);
+      }
+
+      // Step 4: Post acknowledgment comment
+      console.log("\nStep 4: Posting acknowledgment comment...");
+      try {
+        await postAcknowledgmentComment(
+          owner,
+          repo,
+          issueNumber,
+          issueTitle,
+          issueBody,
+          classification,
+          githubToken
+        );
+      } catch (error) {
+        console.error("Failed to post acknowledgment comment:", error);
+        logError(summary.errors, "acknowledgment_comment", error, issueNumber);
+        // Continue even if comment fails
       }
     }
 
