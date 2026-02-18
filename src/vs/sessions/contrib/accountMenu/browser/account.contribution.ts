@@ -135,9 +135,11 @@ class AccountWidget extends ActionViewItem {
 		fillInActionBarActions(menu.getActions(), actions);
 		menu.dispose();
 
+		const rect = anchor.getBoundingClientRect();
 		this.contextMenuService.showContextMenu({
-			getAnchor: () => anchor,
+			getAnchor: () => ({ x: rect.right, y: rect.top }),
 			getActions: () => actions,
+			anchorAlignment: AnchorAlignment.LEFT,
 		});
 	}
 
@@ -307,6 +309,7 @@ class AccountWidgetContribution extends Disposable implements IWorkbenchContribu
 						when: ContextKeyExpr.or(
 							CONTEXT_UPDATE_STATE.isEqualTo(StateType.Ready),
 							CONTEXT_UPDATE_STATE.isEqualTo(StateType.AvailableForDownload),
+							CONTEXT_UPDATE_STATE.isEqualTo(StateType.CheckingForUpdates),
 							CONTEXT_UPDATE_STATE.isEqualTo(StateType.Downloading),
 							CONTEXT_UPDATE_STATE.isEqualTo(StateType.Downloaded),
 							CONTEXT_UPDATE_STATE.isEqualTo(StateType.Updating),
