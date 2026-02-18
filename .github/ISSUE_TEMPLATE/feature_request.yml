@@ -21,6 +21,19 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: kiro-product
+    attributes:
+      label: Kiro Product
+      description: Which Kiro product does this feature request apply to?
+      options:
+        - IDE
+        - CLI
+        - IDE and CLI
+        - Autonomous Agent
+    validations:
+      required: true
+
   - type: textarea
     id: feature-description
     attributes:
