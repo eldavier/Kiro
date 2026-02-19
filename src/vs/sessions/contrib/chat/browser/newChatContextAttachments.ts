@@ -15,7 +15,7 @@ import { ThemeIcon } from '../../../../base/common/themables.js';
 
 import { IQuickInputService, IQuickPickItem, IQuickPickSeparator } from '../../../../platform/quickinput/common/quickInput.js';
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
-import { IFileService } from '../../../../platform/files/common/files.js';
+import { IFileService, IFileStat } from '../../../../platform/files/common/files.js';
 import { IClipboardService } from '../../../../platform/clipboard/common/clipboardService.js';
 import { IFileDialogService } from '../../../../platform/dialogs/common/dialogs.js';
 import { ILabelService } from '../../../../platform/label/common/label.js';
@@ -405,6 +405,56 @@ export class NewChatContextAttachments extends Disposable {
 		};
 
 		await collect(rootUri, 0);
+		return picks;
+	}
+
+	private async _collectFilePicks(rootUri: URI): Promise<IQuickPickItem[]> {
+		const picks: IQuickPickItem[] = [];
+		const maxFiles = 200;
+
+		const collect = async (uri: URI): Promise<void> => {
+			if (picks.length >= maxFiles) {
+				return;
+			}
+
+			let stat: IFileStat;
+			try {
+				stat = await this.fileService.resolve(uri);
+			} catch {
+				return;
+			}
+
+			if (!stat.children) {
+				return;
+			}
+
+			const children = stat.children
+				.slice()
+				.sort((a, b) => {
+					if (a.isDirectory !== b.isDirectory) {
+						return a.isDirectory ? -1 : 1;
+					}
+					return a.name.localeCompare(b.name);
+				});
+
+			for (const child of children) {
+				if (picks.length >= maxFiles) {
+					break;
+				}
+				if (child.isDirectory) {
+					await collect(child.resource);
+				} else {
+					picks.push({
+						label: child.name,
+						description: this.labelService.getUriLabel(child.resource, { relative: true }),
+						iconClass: ThemeIcon.asClassName(Codicon.file),
+						id: child.resource.toString(),
+					} satisfies IQuickPickItem);
+				}
+			}
+		};
+
+		await collect(rootUri);
 		return picks;
 	}
 
