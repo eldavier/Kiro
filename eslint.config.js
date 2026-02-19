@@ -2116,7 +2116,6 @@ export default tseslint.config(
 	{
 		files: [
 			'extensions/**/*.ts',
-
 		],
 		ignores: [
 			'extensions/**/*.test.ts',
