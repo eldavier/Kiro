@@ -63,7 +63,7 @@ class ActionWidgetService extends Disposable implements IActionWidgetService {
 	show<T>(user: string, supportsPreview: boolean, items: readonly IActionListItem<T>[], delegate: IActionListDelegate<T>, anchor: HTMLElement | StandardMouseEvent | IAnchor, container: HTMLElement | undefined, actionBarActions?: readonly IAction[], accessibilityProvider?: Partial<IListAccessibilityProvider<IActionListItem<T>>>, listOptions?: IActionListOptions): void {
 		const visibleContext = ActionWidgetContextKeys.Visible.bindTo(this._contextKeyService);
 
-		const list = this._instantiationService.createInstance(ActionList, user, supportsPreview, items, delegate, accessibilityProvider, listOptions);
+		const list = this._instantiationService.createInstance(ActionList, user, supportsPreview, items, delegate, accessibilityProvider, listOptions, anchor);
 		this._contextViewService.showContextView({
 			getAnchor: () => anchor,
 			render: (container: HTMLElement) => {
@@ -74,6 +74,7 @@ class ActionWidgetService extends Disposable implements IActionWidgetService {
 				visibleContext.reset();
 				this._onWidgetClosed(didCancel);
 			},
+			get anchorPosition() { return list.anchorPosition; },
 		}, container, false);
 	}
 
@@ -105,6 +106,9 @@ class ActionWidgetService extends Disposable implements IActionWidgetService {
 
 		this._list.value = list;
 		if (this._list.value) {
+			if (this._list.value.filterContainer) {
+				widget.appendChild(this._list.value.filterContainer);
+			}
 			widget.appendChild(this._list.value.domNode);
 		} else {
 			throw new Error('List has no value');

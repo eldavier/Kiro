@@ -201,9 +201,37 @@ export function buildModelPickerItems(
 				promotedModels.push(model);
 			}
 		} else if (!model) {
-			// Model is not available - determine reason
-			if (!isProUser) {
-				return 'upgrade';
+			markPlaced(entry.id);
+			promotedItems.push({ kind: 'unavailable', entry, reason: getUnavailableReason(entry) });
+		}
+	}
+
+	// Render promoted section: sorted alphabetically by name
+	if (promotedItems.length > 0) {
+		promotedItems.sort((a, b) => {
+			const aName = a.kind === 'available' ? a.model.metadata.name : a.entry.label;
+			const bName = b.kind === 'available' ? b.model.metadata.name : b.entry.label;
+			return aName.localeCompare(bName);
+		});
+
+		items.push({ kind: ActionListItemKind.Separator });
+		for (const item of promotedItems) {
+			if (item.kind === 'available') {
+				items.push(createModelItem(createModelAction(item.model, selectedModelId, onSelect), item.model));
+			} else {
+				items.push(createUnavailableModelItem(item.entry, item.reason, upgradePlanUrl, updateStateType));
+			}
+		}
+	}
+
+	// --- 3. Other Models (collapsible) ---
+	const otherModels = models
+		.filter(m => !placed.has(m.identifier) && !placed.has(m.metadata.id))
+		.sort((a, b) => {
+			const aCopilot = a.metadata.vendor === 'copilot' ? 0 : 1;
+			const bCopilot = b.metadata.vendor === 'copilot' ? 0 : 1;
+			if (aCopilot !== bCopilot) {
+				return aCopilot - bCopilot;
 			}
 			if (entry.minVSCodeVersion && !isVersionAtLeast(currentVSCodeVersion, entry.minVSCodeVersion)) {
 				return 'update';
@@ -672,23 +700,6 @@ function getModelHoverContent(model: ILanguageModelChatMetadataAndIdentifier): M
 		const totalTokens = (model.metadata.maxInputTokens ?? 0) + (model.metadata.maxOutputTokens ?? 0);
 		markdown.appendMarkdown(`${localize('models.contextSize', 'Context Size')}: `);
 		markdown.appendMarkdown(`${formatTokenCount(totalTokens)}`);
-		markdown.appendText(`\n`);
-	}
-
-	if (model.metadata.capabilities) {
-		markdown.appendMarkdown(`${localize('models.capabilities', 'Capabilities')}: `);
-		if (model.metadata.capabilities?.toolCalling) {
-			markdown.appendMarkdown(`&nbsp;<span style="background-color:#8080802B;">&nbsp;_${localize('models.toolCalling', 'Tools')}_&nbsp;</span>`);
-		}
-		if (model.metadata.capabilities?.vision) {
-			markdown.appendMarkdown(`&nbsp;<span style="background-color:#8080802B;">&nbsp;_${localize('models.vision', 'Vision')}_&nbsp;</span>`);
-		}
-		if (model.metadata.capabilities?.agentMode) {
-			markdown.appendMarkdown(`&nbsp;<span style="background-color:#8080802B;">&nbsp;_${localize('models.agentMode', 'Agent Mode')}_&nbsp;</span>`);
-		}
-		for (const editTool of model.metadata.capabilities.editTools ?? []) {
-			markdown.appendMarkdown(`&nbsp;<span style="background-color:#8080802B;">&nbsp;_${editTool}_&nbsp;</span>`);
-		}
 		markdown.appendText(`\n`);
 	}
 

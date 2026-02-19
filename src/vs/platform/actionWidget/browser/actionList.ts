@@ -3,8 +3,10 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import * as dom from '../../../base/browser/dom.js';
+import { StandardMouseEvent } from '../../../base/browser/mouseEvent.js';
 import { renderMarkdown } from '../../../base/browser/markdownRenderer.js';
 import { ActionBar } from '../../../base/browser/ui/actionbar/actionbar.js';
+import { getAnchorRect, IAnchor } from '../../../base/browser/ui/contextview/contextview.js';
 import { KeybindingLabel } from '../../../base/browser/ui/keybindingLabel/keybindingLabel.js';
 import { IListEvent, IListMouseEvent, IListRenderer, IListVirtualDelegate } from '../../../base/browser/ui/list/list.js';
 import { IListAccessibilityProvider, List } from '../../../base/browser/ui/list/listWidget.js';
@@ -13,6 +15,7 @@ import { CancellationToken, CancellationTokenSource } from '../../../base/common
 import { Codicon } from '../../../base/common/codicons.js';
 import { IMarkdownString, MarkdownString } from '../../../base/common/htmlContent.js';
 import { ResolvedKeybinding } from '../../../base/common/keybindings.js';
+import { AnchorPosition } from '../../../base/common/layout.js';
 import { Disposable, DisposableStore, MutableDisposable } from '../../../base/common/lifecycle.js';
 import { OS } from '../../../base/common/platform.js';
 import { ThemeIcon } from '../../../base/common/themables.js';
@@ -363,6 +366,18 @@ export class ActionList<T> extends Disposable {
 	private _lastMinWidth = 0;
 	private _cachedMaxWidth: number | undefined;
 	private _hasLaidOut = false;
+	private _showAbove: boolean | undefined;
+
+	/**
+	 * Returns the resolved anchor position after the first layout.
+	 * Used by the context view delegate to lock the dropdown direction.
+	 */
+	get anchorPosition(): AnchorPosition | undefined {
+		if (this._showAbove === undefined) {
+			return undefined;
+		}
+		return this._showAbove ? AnchorPosition.ABOVE : AnchorPosition.BELOW;
+	}
 
 	constructor(
 		user: string,
@@ -371,6 +386,7 @@ export class ActionList<T> extends Disposable {
 		private readonly _delegate: IActionListDelegate<T>,
 		accessibilityProvider: Partial<IListAccessibilityProvider<IActionListItem<T>>> | undefined,
 		private readonly _options: IActionListOptions | undefined,
+		private readonly _anchor: HTMLElement | StandardMouseEvent | IAnchor,
 		@IContextViewService private readonly _contextViewService: IContextViewService,
 		@IKeybindingService private readonly _keybindingService: IKeybindingService,
 		@ILayoutService private readonly _layoutService: ILayoutService,
@@ -598,6 +614,19 @@ export class ActionList<T> extends Disposable {
 		return this._filterContainer;
 	}
 
+	/**
+	 * Returns the resolved filter placement based on the dropdown direction.
+	 * When shown above the anchor, filter is at the bottom (closest to anchor);
+	 * when shown below, filter is at the top.
+	 */
+	get filterPlacement(): 'top' | 'bottom' {
+		return this._showAbove ? 'bottom' : 'top';
+	}
+
+	get filterInput(): HTMLInputElement | undefined {
+		return this._filterInput;
+	}
+
 	private focusCondition(element: IActionListItem<unknown>): boolean {
 		return !element.disabled && element.kind === ActionListItemKind.Action;
 	}
@@ -617,9 +646,14 @@ export class ActionList<T> extends Disposable {
 		this._contextViewService.hideContextView();
 	}
 
-	layout(minWidth: number): number {
-		this._hasLaidOut = true;
-		this._lastMinWidth = minWidth;
+	private hasDynamicHeight(): boolean {
+		if (this._options?.showFilter) {
+			return true;
+		}
+		return this._allMenuItems.some(item => item.isSectionToggle);
+	}
+
+	private computeHeight(): number {
 		// Compute height based on currently visible items in the list
 		const visibleCount = this._list.length;
 		let listHeight = 0;
@@ -638,7 +672,46 @@ export class ActionList<T> extends Disposable {
 			}
 		}
 
-		this._list.layout(listHeight);
+		const filterHeight = this._filterContainer ? 36 : 0;
+		const padding = 10;
+		const targetWindow = dom.getWindow(this.domNode);
+		let availableHeight;
+
+		if (this.hasDynamicHeight()) {
+			const viewportHeight = targetWindow.innerHeight;
+			const anchorRect = getAnchorRect(this._anchor);
+			const anchorTopInViewport = anchorRect.top - targetWindow.pageYOffset;
+			const spaceBelow = viewportHeight - anchorTopInViewport - anchorRect.height - padding;
+			const spaceAbove = anchorTopInViewport - padding;
+
+			// Lock the direction on first layout based on whether the full
+			// unconstrained list fits below. Once decided, the dropdown stays
+			// in the same position even when the visible item count changes.
+			if (this._showAbove === undefined) {
+				let fullHeight = filterHeight;
+				for (const item of this._allMenuItems) {
+					switch (item.kind) {
+						case ActionListItemKind.Header: fullHeight += this._headerLineHeight; break;
+						case ActionListItemKind.Separator: fullHeight += this._separatorLineHeight; break;
+						default: fullHeight += this._actionLineHeight; break;
+					}
+				}
+				this._showAbove = fullHeight > spaceBelow && spaceAbove > spaceBelow;
+			}
+			availableHeight = this._showAbove ? spaceAbove : spaceBelow;
+		} else {
+			const windowHeight = this._layoutService.getContainer(targetWindow).clientHeight;
+			const widgetTop = this.domNode.getBoundingClientRect().top;
+			availableHeight = widgetTop > 0 ? windowHeight - widgetTop - padding : windowHeight * 0.7;
+		}
+
+		const maxHeight = Math.max(availableHeight, this._actionLineHeight * 3 + filterHeight);
+		const height = Math.min(listHeight + filterHeight, maxHeight);
+		return height - filterHeight;
+	}
+
+	private computeMaxWidth(minWidth: number): number {
+		const visibleCount = this._list.length;
 		const effectiveMinWidth = Math.max(minWidth, this._options?.minWidth ?? 0);
 		let maxWidth = effectiveMinWidth;
 
@@ -708,7 +781,25 @@ export class ActionList<T> extends Disposable {
 
 		this.domNode.style.height = `${listFinalHeight}px`;
 
-		return maxWidth;
+		this._cachedMaxWidth = this.computeMaxWidth(minWidth);
+		this._list.layout(listHeight, this._cachedMaxWidth);
+		this.domNode.style.height = `${listHeight}px`;
+
+		// Place filter container on the correct side based on dropdown direction.
+		// When shown above, filter goes below the list (closest to anchor).
+		// When shown below, filter goes above the list (closest to anchor).
+		if (this._filterContainer && this._filterContainer.parentElement) {
+			const parent = this._filterContainer.parentElement;
+			if (this._showAbove) {
+				// Move filter after the list
+				parent.appendChild(this._filterContainer);
+			} else {
+				// Move filter before the list
+				parent.insertBefore(this._filterContainer, this.domNode);
+			}
+		}
+
+		return this._cachedMaxWidth;
 	}
 
 	focusPrevious() {

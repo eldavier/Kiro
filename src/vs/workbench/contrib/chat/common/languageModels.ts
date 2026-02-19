@@ -376,7 +376,12 @@ export interface ILanguageModelsService {
 	/**
 	 * Records that a model was used, updating the recently used list.
 	 */
-	addToRecentlyUsedList(model: ILanguageModelChatMetadataAndIdentifier): void;
+	addToRecentlyUsedList(modelIdentifier: string): void;
+
+	/**
+	 * Clears the recently used model list.
+	 */
+	clearRecentlyUsedList(): void;
 
 	/**
 	 * Returns the curated models from the models control manifest,
@@ -1385,26 +1390,31 @@ export class LanguageModelsService implements ILanguageModelsService {
 	getRecentlyUsedModelIds(): string[] {
 		// Filter to only include models that still exist in the cache
 		return this._recentlyUsedModelIds
-			.filter(id => this._modelCache.has(id) && id !== 'auto')
+			.filter(id => this._modelCache.has(id) && id !== 'copilot/auto')
 			.slice(0, 5);
 	}
 
-	addToRecentlyUsedList(model: ILanguageModelChatMetadataAndIdentifier): void {
-		if (model.metadata.id === 'auto' && this._vendors.get(model.metadata.vendor)?.isDefault) {
+	addToRecentlyUsedList(modelIdentifier: string): void {
+		if (modelIdentifier === 'copilot/auto') {
 			return;
 		}
 
 		// Remove if already present (to move to front)
-		const index = this._recentlyUsedModelIds.indexOf(model.identifier);
+		const index = this._recentlyUsedModelIds.indexOf(modelIdentifier);
 		if (index !== -1) {
 			this._recentlyUsedModelIds.splice(index, 1);
 		}
 		// Add to front
-		this._recentlyUsedModelIds.unshift(model.identifier);
+		this._recentlyUsedModelIds.unshift(modelIdentifier);
 		// Cap at a reasonable max to avoid unbounded growth
 		if (this._recentlyUsedModelIds.length > 20) {
 			this._recentlyUsedModelIds.length = 20;
 		}
+		this._saveRecentlyUsedModels();
+	}
+
+	clearRecentlyUsedList(): void {
+		this._recentlyUsedModelIds = [];
 		this._saveRecentlyUsedModels();
 	}
 

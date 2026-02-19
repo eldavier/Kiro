@@ -467,7 +467,6 @@ class NewChatWidget extends Disposable {
 			currentModel: this._currentLanguageModel,
 			setModel: (model: ILanguageModelChatMetadataAndIdentifier) => {
 				this._currentLanguageModel.set(model, undefined);
-				this.languageModelsService.addToRecentlyUsedList(model);
 			},
 			getModels: () => this._getAvailableModels(),
 			canManageModels: () => true,
