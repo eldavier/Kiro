@@ -6,6 +6,12 @@
  *   "bedrock"        – AWS Bedrock (default)
  *   "github-models"  – GitHub Models
  *   "openai"         – OpenAI / GitHub Copilot compatible
+ * Detects duplicate issues using a configurable AI provider for semantic similarity.
+ *
+ * Supported providers (set AI_PROVIDER env var):
+ *   "bedrock"        – AWS Bedrock (default)
+ *   "github-models"  – GitHub Models
+ *   "openai"         – OpenAI / GitHub Copilot compatible
  */
 
 import { Octokit } from "@octokit/rest";
