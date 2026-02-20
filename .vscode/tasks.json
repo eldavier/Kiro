@@ -314,9 +314,14 @@
 			"script": "tsec-compile-check",
 			"problemMatcher": [
 				{
-					"base": "$tsc",
+					"owner": "tsec",
+					"source": "ts",
 					"applyTo": "allDocuments",
-					"owner": "tsec"
+					"fileLocation": [
+						"relative",
+						"${cwd}"
+					],
+					"pattern": "$tsc"
 				}
 			],
 			"group": "build",
