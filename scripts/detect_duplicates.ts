@@ -78,6 +78,7 @@ export async function fetchExistingIssues(
     }
 
     // Filter for Bug or Feature types, or bug/feature labels
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GitHub issue shape varies
     const filteredIssues = allIssues.filter((issue: any) => {
       // Exclude current issue and pull requests
       if (issue.number === currentIssueNumber || issue.pull_request) {
@@ -92,13 +93,15 @@ export async function fetchExistingIssues(
       }
 
       // Fallback: Check for bug or feature labels
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- label can be string or object
       const labelNames = issue.labels.map((l: any) =>
         typeof l === "string" ? l.toLowerCase() : (l.name || "").toLowerCase()
       );
       return labelNames.includes("bug") || labelNames.includes("feature");
     });
 
-    const hasTypes = allIssues.some(i => i.type && i.type.name);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Octokit type field not in official types
+    const hasTypes = allIssues.some((i: any) => i.type && i.type.name);
     const filterMethod = hasTypes
       ? "issue types (Bug/Feature)" 
       : "labels (bug/feature)";
@@ -107,12 +110,14 @@ export async function fetchExistingIssues(
       `Filtered ${filteredIssues.length} issues with Bug/Feature type (from ${allIssues.length} total) using ${filterMethod}`
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mapping untyped GitHub API response
     return filteredIssues.map((issue: any) => ({
       number: issue.number,
       title: issue.title,
       body: issue.body || "",
       created_at: new Date(issue.created_at),
       updated_at: new Date(issue.updated_at),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- label can be string or object
       labels: issue.labels.map((l: any) =>
         typeof l === "string" ? l : l.name || ""
       ),
