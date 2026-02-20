@@ -164,7 +164,7 @@ async function main() {
     // Only classify and assign labels if NOT a duplicate
     if (!isDuplicate) {
       // Step 2: Classify issue using Bedrock
-      console.log("\nStep 2: Classifying issue with AWS Bedrock...");
+      console.log("\nStep 2: Classifying issue with AI provider...");
       let classification;
       try {
         classification = await classifyIssue(issueTitle, issueBody, taxonomy);

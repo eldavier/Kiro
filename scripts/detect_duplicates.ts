@@ -18,54 +18,6 @@ import { resolveModel } from "./model_costs.js";
 const SIMILARITY_THRESHOLD = 0.8;
 const BATCH_SIZE = 10;
 
-// Security: Maximum lengths for input validation
-const MAX_TITLE_LENGTH = 500;
-const MAX_BODY_LENGTH = 10000;
-
-/**
- * Sanitize user input to prevent prompt injection attacks
- */
-function sanitizePromptInput(input: string, maxLength: number): string {
-  if (!input) {
-    return "";
-  }
-
-  // Truncate to maximum length
-  let sanitized = input.substring(0, maxLength);
-
-  // Remove potential prompt injection patterns
-  // These patterns could be used to manipulate the AI's behavior
-  const dangerousPatterns = [
-    /ignore\s+(all\s+)?(previous|above|prior)\s+instructions?/gi,
-    /disregard\s+(all\s+)?(previous|above|prior)\s+instructions?/gi,
-    /forget\s+(all\s+)?(previous|above|prior)\s+instructions?/gi,
-    /new\s+instructions?:/gi,
-    /system\s*:/gi,
-    /assistant\s*:/gi,
-    /\[SYSTEM\]/gi,
-    /\[ASSISTANT\]/gi,
-    /\<\|im_start\|\>/gi,
-    /\<\|im_end\|\>/gi,
-  ];
-
-  for (const pattern of dangerousPatterns) {
-    sanitized = sanitized.replace(pattern, "[REDACTED]");
-  }
-
-  // Escape backticks that could break JSON formatting
-  sanitized = sanitized.replace(/`/g, "'");
-
-  // Remove excessive newlines that could break prompt structure
-  sanitized = sanitized.replace(/\n{4,}/g, "\n\n\n");
-
-  // Add truncation notice if content was cut
-  if (input.length > maxLength) {
-    sanitized += "\n\n[Content truncated for security]";
-  }
-
-  return sanitized;
-}
-
 /**
  * Fetch existing open issues from repository with Bug or Feature type
  * Falls back to bug/feature labels if issue types are not configured
@@ -181,6 +133,7 @@ export async function fetchExistingIssues(
     }
 
     // Filter for Bug or Feature types, or bug/feature labels
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GitHub issue shape varies
     const filteredIssues = allIssues.filter((issue: any) => {
       // Exclude current issue and pull requests
       if (issue.number === currentIssueNumber || issue.pull_request) {
@@ -195,13 +148,15 @@ export async function fetchExistingIssues(
       }
 
       // Fallback: Check for bug or feature labels
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- label can be string or object
       const labelNames = issue.labels.map((l: any) =>
         typeof l === "string" ? l.toLowerCase() : (l.name || "").toLowerCase()
       );
       return labelNames.includes("bug") || labelNames.includes("feature");
     });
 
-    const hasTypes = allIssues.some(i => i.type && i.type.name);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Octokit type field not in official types
+    const hasTypes = allIssues.some((i: any) => i.type && i.type.name);
     const filterMethod = hasTypes
       ? "issue types (Bug/Feature)" 
       : "labels (bug/feature)";
@@ -210,12 +165,14 @@ export async function fetchExistingIssues(
       `Filtered ${filteredIssues.length} issues with Bug/Feature type (from ${allIssues.length} total) using ${filterMethod}`
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mapping untyped GitHub API response
     return filteredIssues.map((issue: any) => ({
       number: issue.number,
       title: issue.title,
       body: issue.body || "",
       created_at: new Date(issue.created_at),
       updated_at: new Date(issue.updated_at),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- label can be string or object
       labels: issue.labels.map((l: any) =>
         typeof l === "string" ? l : l.name || ""
       ),
