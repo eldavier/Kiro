@@ -11,6 +11,67 @@ import {
   postDuplicateComment,
 } from "./detect_duplicates.js";
 import { createSummary, logError, WorkflowSummary } from "./workflow_summary.js";
+import { retryWithBackoff } from "./retry_utils.js";
+import {
+  generateAcknowledgmentComment,
+  getFallbackComment,
+} from "./bedrock_comment_generator.js";
+import { printUsageSummary } from "./model_costs.js";
+
+/**
+ * Post initial acknowledgment comment on new issue
+ */
+async function postAcknowledgmentComment(
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  issueTitle: string,
+  issueBody: string,
+  classification: ClassificationResult,
+  githubToken: string
+): Promise<boolean> {
+  try {
+    const client = new Octokit({ auth: githubToken });
+
+    console.log(`Generating acknowledgment comment for issue #${issueNumber}...`);
+    
+    let comment: string;
+    try {
+      comment = await generateAcknowledgmentComment(
+        owner,
+        repo,
+        issueNumber,
+        issueTitle,
+        issueBody,
+        classification,
+        githubToken
+      );
+    } catch {
+      console.warn("Failed to generate comment with Bedrock, using fallback");
+      comment = getFallbackComment();
+    }
+
+    console.log(`Posting acknowledgment comment to issue #${issueNumber}`);
+
+    await retryWithBackoff(async () => {
+      await client.issues.createComment({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: comment,
+      });
+    });
+
+    console.log(`Successfully posted acknowledgment comment to issue #${issueNumber}`);
+    return true;
+  } catch (error) {
+    console.error(
+      `Error posting acknowledgment comment to issue #${issueNumber}:`,
+      error
+    );
+    return false;
+  }
+}
 
 async function main() {
   const summary: WorkflowSummary = {
@@ -47,7 +108,7 @@ async function main() {
     const taxonomy = new LabelTaxonomy();
 
     // Step 1: Classify issue using Bedrock
-    console.log("Step 1: Classifying issue with AWS Bedrock...");
+    console.log("Step 1: Classifying issue with AI provider...");
     let classification;
     try {
       classification = await classifyIssue(issueTitle, issueBody, taxonomy);
@@ -154,6 +215,7 @@ async function main() {
     }
 
     createSummary(summary);
+    printUsageSummary();
     process.exit(summary.success ? 0 : 1);
   } catch (error) {
     console.error("\n=== Triage Failed ===");
@@ -162,6 +224,7 @@ async function main() {
     summary.success = false;
     summary.failureCount = 1;
     createSummary(summary);
+    printUsageSummary();
     process.exit(1);
   }
 }
