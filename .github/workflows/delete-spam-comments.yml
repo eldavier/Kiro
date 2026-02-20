@@ -1,0 +1,82 @@
+name: Delete Spam Comments
+
+on:
+  issue_comment:
+    types: [created]
+  schedule:
+    # Run daily at 2 AM UTC for bulk cleanup of any missed spam
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      scan_mode:
+        description: "Scan mode: 'bulk' scans all comments, 'single' requires comment_id"
+        required: false
+        default: "bulk"
+        type: choice
+        options:
+          - bulk
+          - single
+      comment_id:
+        description: "Comment ID (only for single mode)"
+        required: false
+        type: string
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  delete-spam:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm install
+
+      - name: Build TypeScript
+        working-directory: scripts
+        run: npm run build
+
+      - name: Delete spam comments
+        working-directory: scripts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          REPOSITORY_NAME: ${{ github.event.repository.name }}
+          # Single-comment mode (event-driven)
+          SCAN_MODE: >-
+            ${{
+              github.event_name == 'issue_comment'
+              && 'single'
+              || inputs.scan_mode
+              || 'bulk'
+            }}
+          COMMENT_ID: >-
+            ${{
+              github.event.comment.id
+              || inputs.comment_id
+              || ''
+            }}
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login || '' }}
+        run: node dist/delete_spam_comments.js
+
+      - name: Create workflow summary
+        if: always()
+        env:
+          EVENT: ${{ github.event_name }}
+          COMMENT_ID: ${{ github.event.comment.id || inputs.comment_id || 'N/A' }}
+        run: |
+          echo "## Spam Comment Deletion Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Trigger: $EVENT" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Comment ID: $COMMENT_ID" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Run time: $(date -u)" >> "$GITHUB_STEP_SUMMARY"
