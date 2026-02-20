@@ -1,101 +1,45 @@
 /**
  * Delete Spam Comments Script
- * Uses AWS Bedrock to semantically detect and delete spam comments on GitHub issues.
+ * Scans issue and PR comments for spam content and deletes them.
+ * Triggered on new comments or run on a schedule for bulk cleanup.
  */
 
 import { Octokit } from "@octokit/rest";
-import {
-  BedrockRuntimeClient,
-  InvokeModelCommand,
-} from "@aws-sdk/client-bedrock-runtime";
 import { retryWithBackoff } from "./retry_utils.js";
 import { checkRateLimit, processBatch } from "./rate_limit_utils.js";
 
-const BEDROCK_MODEL_ID = "us.anthropic.claude-sonnet-4-20250514-v1:0";
-const CONFIDENCE_THRESHOLD = 0.85;
+// Patterns that identify spam comments
+const SPAM_PATTERNS: RegExp[] = [
+  /https?:\/\/t\.me\//i,           // Telegram links
+  /https?:\/\/wa\.me\//i,          // WhatsApp links
+  /https?:\/\/discord\.gg\/(?!kirodotdev)[A-Za-z0-9]+/i,  // Discord invite links (unsolicited, excludes discord.gg/kirodotdev)
+  /\bt\.me\/[A-Za-z0-9_]+/i,      // Telegram handles without protocol
+  /join\s+(our\s+)?(telegram|whatsapp|discord)\s+(group|channel|server)/i,
+  /free\s+(money|crypto|bitcoin|investment|profit)/i,
+  /earn\s+\$?\d+\s+(per\s+day|daily|weekly)/i,
+  /click\s+here\s+to\s+(join|earn|invest|win)/i,
+];
 
-export interface SpamCheckResult {
+interface SpamCheckResult {
   isSpam: boolean;
-  reason: string;
-  confidence: number;
-}
-
-function createBedrockClient(): BedrockRuntimeClient {
-  return new BedrockRuntimeClient({
-    region: process.env.AWS_REGION || "us-east-1",
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-    },
-  });
+  matchedPattern?: string;
 }
 
 /**
- * Use Bedrock to semantically detect spam, including obfuscated/homoglyph content.
+ * Check if comment body contains spam content
  */
-export async function isSpamComment(body: string): Promise<SpamCheckResult> {
-  if (!body.trim()) {
-    return { isSpam: false, reason: "Empty comment", confidence: 0 };
+function isSpamComment(body: string): SpamCheckResult {
+  for (const pattern of SPAM_PATTERNS) {
+    if (pattern.test(body)) {
+      return { isSpam: true, matchedPattern: pattern.toString() };
+    }
   }
-
-  const client = createBedrockClient();
-
-  const prompt = `You are a spam detection system for GitHub issue comments.
-
-Analyze the following comment and determine if it is spam. Spam includes:
-- Cryptocurrency scams or investment fraud
-- Unsolicited promotions for Telegram/WhatsApp/Discord groups
-- Fake profit or earnings claims ("guaranteed returns", "5x in 24h", etc.)
-- Phishing or obfuscated URLs (e.g. hxxps://, xn-- punycode domains, defanged links)
-- Any message designed to lure users into financial scams
-
-IMPORTANT: The comment may use Unicode tricks, homoglyphs (α→a, ø→o, 𝟛→3), leetspeak, or other obfuscation to evade filters. Analyze the intent, not just the literal characters.
-
-Comment to analyze:
-<comment>
-${body.substring(0, 2000)}
-</comment>
-
-Respond with JSON only:
-{
-  "is_spam": true | false,
-  "confidence": 0.0 to 1.0,
-  "reason": "brief explanation"
-}`;
-
-  try {
-    const responseBody = await retryWithBackoff(async () => {
-      const command = new InvokeModelCommand({
-        modelId: BEDROCK_MODEL_ID,
-        contentType: "application/json",
-        accept: "application/json",
-        body: JSON.stringify({
-          anthropic_version: "bedrock-2023-05-31",
-          max_tokens: 256,
-          temperature: 0.1,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-      const response = await client.send(command);
-      return new TextDecoder().decode(response.body);
-    });
-
-    const parsed = JSON.parse(responseBody);
-    const text = parsed.content?.find((c: any) => c.type === "text")?.text ?? "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON in Bedrock response");
-
-    const result = JSON.parse(jsonMatch[0]);
-    const confidence = result.confidence ?? 0;
-    const isSpam = result.is_spam === true && confidence >= CONFIDENCE_THRESHOLD;
-
-    return { isSpam, reason: result.reason ?? "", confidence };
-  } catch (err) {
-    console.warn("Bedrock spam check failed, skipping:", err);
-    return { isSpam: false, reason: "Bedrock check failed", confidence: 0 };
-  }
+  return { isSpam: false };
 }
 
+/**
+ * Delete a single comment by ID
+ */
 async function deleteComment(
   client: Octokit,
   owner: string,
@@ -107,6 +51,9 @@ async function deleteComment(
   });
 }
 
+/**
+ * Scan and delete spam from a single comment (event-driven mode)
+ */
 async function processSingleComment(
   client: Octokit,
   owner: string,
@@ -115,20 +62,25 @@ async function processSingleComment(
   commentBody: string,
   commentAuthor: string
 ): Promise<boolean> {
-  console.log(`Checking comment #${commentId} by @${commentAuthor}...`);
-  const result = await isSpamComment(commentBody);
+  const result = isSpamComment(commentBody);
 
   if (!result.isSpam) {
-    console.log(`Clean (confidence: ${result.confidence.toFixed(2)}). Reason: ${result.reason}`);
+    console.log(`Comment #${commentId} by @${commentAuthor} is clean.`);
     return false;
   }
 
-  console.log(`Spam detected (confidence: ${result.confidence.toFixed(2)}). Reason: ${result.reason}`);
+  console.log(
+    `Spam detected in comment #${commentId} by @${commentAuthor}. Pattern: ${result.matchedPattern}`
+  );
+
   await deleteComment(client, owner, repo, commentId);
   console.log(`Deleted spam comment #${commentId}`);
   return true;
 }
 
+/**
+ * Bulk scan all open issue/PR comments (scheduled mode)
+ */
 async function bulkScanAndDelete(
   client: Octokit,
   owner: string,
@@ -160,15 +112,17 @@ async function bulkScanAndDelete(
 
     const results = await processBatch(
       comments,
-      5, // smaller batch size — each item makes a Bedrock API call
+      10,
       async (comment) => {
         scanned++;
         const body = comment.body ?? "";
         const author = comment.user?.login ?? "unknown";
-        const result = await isSpamComment(body);
+        const result = isSpamComment(body);
 
         if (result.isSpam) {
-          console.log(`Spam in comment #${comment.id} by @${author}: ${result.reason}`);
+          console.log(
+            `Spam found in comment #${comment.id} by @${author}. Pattern: ${result.matchedPattern}`
+          );
           try {
             await deleteComment(client, owner, repo, comment.id);
             console.log(`Deleted comment #${comment.id}`);
@@ -180,7 +134,7 @@ async function bulkScanAndDelete(
         }
         return false;
       },
-      1000 // 1s delay between batches to respect Bedrock rate limits
+      500
     );
 
     deleted += results.filter(Boolean).length;
@@ -208,8 +162,16 @@ async function main() {
 
   if (mode === "single" && commentId) {
     console.log(`=== Single Comment Spam Check (comment #${commentId}) ===`);
-    const deleted = await processSingleComment(client, owner, repo, commentId, commentBody, commentAuthor);
-    console.log(`\nSummary: ${deleted ? `Spam comment #${commentId} by @${commentAuthor} was deleted.` : `Comment #${commentId} is clean — no action taken.`}`);
+    const deleted = await processSingleComment(
+      client, owner, repo, commentId, commentBody, commentAuthor
+    );
+    console.log(deleted ? "Comment deleted." : "No action taken.");
+
+    // Write summary
+    const summary = deleted
+      ? `Spam comment #${commentId} by @${commentAuthor} was deleted.`
+      : `Comment #${commentId} passed spam check — no action taken.`;
+    console.log(`\nSummary: ${summary}`);
   } else {
     console.log(`=== Bulk Spam Scan for ${owner}/${repo} ===`);
     const { scanned, deleted } = await bulkScanAndDelete(client, owner, repo);
