@@ -1,0 +1,349 @@
+You are performing a deep autonomous codebase audit and maintenance of AutoBot Studio. Work through each category below and fix what you can immediately. For larger issues, create a plan/spec file in `plans/` or specs/ named `plan-maint-NNN-{description}.md`.
+
+You are in autonomous maintenance mode. Do the following steps in order:
+
+1. Code smells (long methods, duplicated logic, magic numbers, deep nesting, god classes)
+2. Design pattern opportunities (where applying a pattern would simplify or improve the code)
+3. Best practices (proper error handling, naming conventions, SOLID principles, DRY)
+4. Readability (unclear variable names, missing or misleading comments, complex expressions that could be simplified)
+5. Maintainability (tight coupling, missing abstractions, hard-coded values that should be configurable)
+6. Performance optimizations (unnecessary allocations, inefficient loops, redundant computations, N+1 patterns)
+7. All stubs/mocks/fake, partial, or incomplete code, must be fully replaced by the rteal and full imlplementation, ALWAYS 
+8. Run `dotnet build AutoBot.Studio.sln` and capture all errors and warnings.
+9. If there are CS errors: for each unique broken file, read the ViewModel and its engine, identify the API mismatch, and fix it immediately.
+10. Scan all ViewModels in `src/AutoBot.Studio.Desktop/ViewModels/` for any references to types or methods that don't exist on their engine classes (CS0426, CS1061, CS0117 patterns).
+11. Scan all engine files in `src/AutoBot.Studio.Engine/` for: missing `.ConfigureAwait(false)` on awaited calls, non-sealed classes, missing Serilog `_log` fields, and public DTOs that should be records.
+12. Check `App.xaml.cs` for any ViewModels or engines that are used in TabViewFactory but not registered in DI.
+13. Check `TabViewFactory.cs` and `TabRegistry.cs` for any mismatches (tab key in registry but no switch case, or vice versa).
+14. For any issue you cannot fix immediately (e.g. requires significant new code), create a plan file in `plans/` named `plan-maint-{short-description}.md` describing the problem and the fix steps.
+15. Re-run `dotnet build AutoBot.Studio.sln` to confirm 0 errors.
+16. Report a summary of what was fixed and what plans were created.
+Provide concise, actionable suggestions. Do not rewrite the entire file — only highlight specific areas and recommend targeted improvements. Preserve existing functionality.
+Part 2
+1. BUILD HEALTH
+   - Run `dotnet build AutoBot.Studio.sln` — fix all CS errors immediately.
+   - Run `dotnet build ide_engine/AutoBot.IdeEngine.sln` — fix all CS errors immediately.
+2. VIEWMODEL / ENGINE API CONSISTENCY
+   - For every ViewModel in `src/AutoBot.Studio.Desktop/ViewModels/`, verify every type and method it references actually exists on the engine class it uses.
+   - Fix any CS0426, CS1061, CS0117 mismatches immediately.
+3. DI REGISTRATION AUDIT
+   - Read `src/AutoBot.Studio.Desktop/App.xaml.cs`.
+   - Read `src/AutoBot.Studio.Desktop/Navigation/TabViewFactory.cs`.
+   - Every ViewModel used in TabViewFactory must be registered as `AddTransient` in App.xaml.cs.
+   - Every engine used by those ViewModels must be registered as `AddSingleton`.
+   - Create a plan for any missing registrations.
+4. NAVIGATION WIRING AUDIT
+   - Read `src/AutoBot.Studio.Desktop/Navigation/TabRegistry.cs`.
+   - Every tab key in TabRegistry must have a matching case in TabViewFactory.GetView().
+   - Create a plan for any orphaned tab keys.
+5. ENGINE CODE QUALITY
+   - Scan engine files for: missing `.ConfigureAwait(false)`, non-sealed classes, missing `_log` field, DTOs that are classes instead of records.
+   - Create a plan for any systemic issues found.
+6. XAML VIEW AUDIT
+   - Check that every ViewModel in ViewModels/ has a corresponding View in Views/.
+   - Create a plan for any missing views.
+Provide concise, actionable suggestions. Do not rewrite the entire file — only highlight specific areas and recommend targeted improvements. Preserve existing functionality.
+
+Part 3. Plans/specs creation.
+1. Read the last 2 plan files in plans/ to find the current highest version number
+2. Scan a NEW area of the codebase that hasn't been covered by recent plans. Rotate through these domains:
+   - Engine production hardening (find remaining stubs, TODOs, incomplete logic)
+   - ViewModel command wiring gaps (buttons/commands not connected)
+   - Error handling & resilience (bare catches, missing retry, unhandled edge cases)
+   - Crypto engine API integrations (real trading, wallet, DeFi gaps)
+   - Media engine FFmpeg integration (video/audio processing completeness)
+   - Platform security hardening (auth, encryption, input validation)
+   - UI polish & accessibility (XAML accessibility, keyboard nav, screen reader)
+   - Performance optimization (hot paths, memory, async patterns)
+   - Database query optimization (N+1, missing indexes, slow queries)
+   - Background job processing (scheduler, job queue improvements)
+   - Test coverage gaps (untested engines, missing edge case tests)
+   - Documentation gaps (missing XML docs, undocumented public APIs)
+3. Create 1 new versioned plan file at plans/vXX.0.0.md (increment from highest)
+4. The plan MUST:
+   - Reference specific files, classes, and methods
+   - Have subsections (vXX.0.0, vXX.0.1, etc.)
+   - Include Verification and Decisions sections
+   - Be independently shippable
+   - Follow the exact format of existing plans (see v43.0.0.md and v44.0.0.md for reference)
+5. Keep it focused — one domain per plan, deep not wide
+
+During plan creation, assign a subagent to fully implement and integrates the plan/specs while you create new one, everytime its completed, assign it a new one, etc.
+
+
+For any missing parts i might have forgot, heres the full Structure : 
+
+---
+inclusion: always
+---
+
+# AutoBot Studio — Project Structure & Conventions
+
+## Solution Layout
+
+```
+AutoBot.Studio.sln                    Main .NET solution
+├── src/
+│   ├── AutoBot.Studio.Core/         Shared types, interfaces, constants, config
+│   │   ├── Exceptions/              Domain exception types
+│   │   ├── Interfaces/              IDatabase, IEngines, ILlmProvider, IModelCatalog
+│   │   └── Models/                  Rbac, PromptTemplate, BatchJob, CreditPack, etc.
+│   ├── AutoBot.Studio.Data/         SQLite data layer (Dapper, no EF Core)
+│   │   ├── Entities/                Domain entity files
+│   │   ├── Migrations/              Schema migration scripts
+│   │   ├── Repositories/            Data access helpers
+│   │   └── AutoBotDb.cs             Connection wrapper implementing IDatabase
+│   ├── AutoBot.Studio.Engine/       Business logic — 180+ engine classes
+│   │   ├── AI/                      ChatEngine, ContentGenerator, CodingAgent, Providers
+│   │   ├── Analytics/               AnalyticsEngine
+│   │   ├── Auth/                    JWT, RBAC, 2FA, OrgManager
+│   │   ├── Automation/              AutoPilot, Scheduler, DecisionEngine, Pipeline
+│   │   ├── Billing/                 BillingEngine, Subscriptions, Payouts
+│   │   ├── Bots/                    BotService, BotTemplateManager
+│   │   ├── Commerce/                CommerceEngine, Dropshipping, POD, Arbitrage
+│   │   ├── Common/                  Shared engine utilities
+│   │   ├── Crypto/                  Trading, Mining, Wallets, TokenCreator, DeFi
+│   │   ├── Data/                    Engine-level data helpers
+│   │   ├── Diagnostics/             Runtime diagnostics
+│   │   ├── Growth/                  A/B Testing, Pricing, Loyalty, Retention
+│   │   ├── Hardware/                GPU, Memory, VPS monitoring
+│   │   ├── Ide/                     LSP, DAP, Terminal, SFTP, FileExplorer
+│   │   ├── Integrations/            Discord, Webhooks, EventRelay
+│   │   ├── JK2Agent/                Gaming AI agent
+│   │   ├── Marketing/               Campaigns, Email, SEO, Social, Affiliates
+│   │   ├── Media/                   Video, Audio, YouTube, Shorts
+│   │   ├── Migration/               Data migration engines
+│   │   ├── Platform/                Config, Security, Plugins, FeatureFlags
+│   │   ├── Publishing/              KDP, Google Books, Courses
+│   │   ├── Revenue/                 Alerting, Autopilot, Compliance, Ledger
+│   │   ├── Teams/                   NotificationEngine
+│   │   └── WhiteLabel/              WhiteLabelEngine
+│   ├── AutoBot.Studio.Desktop/      WPF app (MVVM)
+│   │   ├── Controls/                Reusable XAML controls (ChartCard, KpiCard, etc.)
+│   │   ├── Converters/              WPF value converters
+│   │   ├── Helpers/                 ChartHelpers
+│   │   ├── Localization/            i18n resource files
+│   │   ├── Navigation/              TabRegistry, TabViewFactory, NavigationService
+│   │   ├── Services/                AutoUpdater, Dialog, Toast, CommandPalette
+│   │   ├── Themes/                  Dark.xaml, Animations.xaml
+│   │   ├── ViewModels/              90+ ViewModels (one per feature tab)
+│   │   └── Views/                   90+ XAML views (one per feature tab)
+│   └── AutoBot.Studio.Cli/          Headless CLI for server/automation mode
+├── tests/
+│   └── AutoBot.Studio.Desktop.Tests/ xunit + FsCheck property-based tests
+│       ├── AI/                       AI engine tests
+│       ├── Auth/                     Auth engine tests
+│       ├── Billing/                  Billing engine tests
+│       ├── Commerce/                 Commerce engine tests
+│       ├── Crypto/                   Crypto engine tests
+│       ├── Data/                     Data layer tests
+│       ├── Diagnostics/              Diagnostics tests
+│       ├── Growth/                   Growth engine tests
+│       ├── Helpers/                  Test helpers/utilities
+│       ├── Integrations/             Integration tests
+│       ├── Marketing/                Marketing engine tests
+│       ├── Navigation/               Tab navigation tests
+│       ├── Pipeline/                 Automation pipeline tests
+│       ├── Platform/                 Platform engine tests
+│       ├── Resilience/               Resilience/retry tests
+│       ├── Revenue/                  Revenue engine tests
+│       ├── Services/                 Service tests
+│       ├── Themes/                   Theme tests
+│       ├── Validation/               Validation tests
+│       ├── ViewModels/               ViewModel tests
+│       └── WhiteLabel/               White-label tests
+├── ide_engine/                       Separate solution (AutoBot.IdeEngine.sln)
+│   ├── src/
+│   │   ├── AutoBot.IdeEngine/       RAM-first IDE engine
+│   │   │   ├── Buffers/             PieceTable, FileBuffer, BufferManager
+│   │   │   ├── Core/                IdeEngine, ProjectLoader
+│   │   │   ├── Diagnostics/         LiveMonitor, MemoryDiagnostics
+│   │   │   ├── Host/                JsonRpcHost
+│   │   │   ├── Index/               AstCache, SymbolTable, IndexManager
+│   │   │   └── Memory/              MemoryManager, HardwareDetector, TierBudget
+│   │   └── AutoBot.IdeEngine.Host/  Standalone host process
+│   └── tests/
+│       └── AutoBot.IdeEngine.Tests/ Buffers, Core, Index, Memory tests
+├── .github/                          CI workflows, PR template, commit conventions
+└── plans/                            Version planning docs
+```
+
+## Dependency Graph
+
+```
+Core ← Data ← Engine ← Desktop
+                     ← Cli
+```
+
+Core has zero project dependencies. Data depends on Core. Engine depends on Core + Data. Desktop and Cli depend on all three.
+
+When adding new code, respect this layering. Engine classes must never reference Desktop/WPF types. Core must never reference Data or Engine.
+
+## Architecture Patterns
+
+### MVVM (Desktop)
+
+- ViewModels inherit `ObservableObject` from CommunityToolkit.Mvvm.
+- Use `[ObservableProperty]` source generators for bindable properties (generates `partial` class).
+- Use `[RelayCommand]` for commands (e.g., `LoadAsync` becomes `LoadCommand`).
+- Each feature tab has exactly one ViewModel and one View (XAML UserControl).
+- ViewModels receive engine interfaces via constructor injection (resolved from DI).
+- Views are created by `TabViewFactory`, which sets `DataContext` from the DI container.
+- ViewModel naming: `{Feature}ViewModel` in `Desktop/ViewModels/`.
+- View naming: `{Feature}View` in `Desktop/Views/`.
+
+### Navigation
+
+- `TabRegistry` defines all tabs as static data: key, label, icon, grouped by domain.
+- `TabViewFactory.GetView(tabKey)` creates and caches views via a `switch` expression mapping tab keys to `CreateView<TView, TViewModel>()`.
+- When adding a new tab: add a `TabEntry` in `TabRegistry.BuildGroups()`, add the `switch` case in `TabViewFactory.GetView()`, create the View + ViewModel, and register the ViewModel in DI.
+
+### Engine Layer
+
+- Engine classes are `sealed`, implement a domain interface (e.g., `IAnalyticsEngine`), and take `IDatabase` (plus other interfaces) via constructor injection.
+- All 180+ engines have real implementations — no stubs.
+- Engines are domain-grouped in subfolders matching the entity domain.
+- Async methods use the `Async` suffix and return `Task<T>`.
+- Logging via `Serilog.Log.ForContext<T>()` stored as a `private readonly ILogger _log` field.
+- Structured log messages use Serilog message templates with named placeholders: `_log.Debug("Loaded {Count} items for org {OrgId}", count, orgId)`.
+
+### Data Access
+
+- SQLite via `Microsoft.Data.Sqlite` + Dapper. No Entity Framework.
+- `AutoBotDb` implements `IDatabase` with `Query<T>`, `QueryAsync<T>`, `Execute`, `ExecuteAsync`, `ExecuteScalar<T>`, and `Transaction`/`TransactionAsync`.
+- Raw SQL queries live inside engine classes, not in a repository layer.
+- Dapper row types are `private sealed record` with lowercase property names matching DB column names, defined at the bottom of the engine class.
+- Public-facing DTOs use PascalCase `record` types.
+
+## Code Style Rules
+
+- File-scoped namespaces (no braces around the namespace).
+- `sealed` on classes that are not intended for inheritance.
+- XML doc comments (`/// <summary>`) on public engine classes. Use `/// <inheritdoc />` on interface implementations.
+- Private fields use `_camelCase` prefix.
+- Prefer `IReadOnlyList<T>` over `List<T>` for return types; use `.ToList().AsReadOnly()`.
+- Use `record` types for immutable data (DTOs, row types, tab entries).
+- Professional, polished UI with advanced visuals (gradients, shadows, smooth animations, consistent spacing).
+- Target: Dark and Light themes, user-selectable at runtime. Currently only Dark exists (`Themes/Dark.xaml`, `DarkTheme.xaml`). Light theme + theme switching infrastructure is planned.
+- All new UI work must use theme-aware resource keys (not hardcoded colors) to prepare for dual-theme support.
+- Reusable controls live in `Desktop/Controls/` (ChartCard, KpiCard, StatusBadge, EmptyState, SearchHeader, ConfirmDialog).
+
+## Adding a New Feature Tab (Checklist)
+
+1. Create `{Feature}View.xaml` + code-behind in `Desktop/Views/`.
+2. Create `{Feature}ViewModel.cs` in `Desktop/ViewModels/` — inherit `ObservableObject`, use `[ObservableProperty]` and `[RelayCommand]`.
+3. If new business logic is needed, create a `sealed` engine class in the appropriate `Engine/{Domain}/` subfolder implementing a new interface.
+4. Add the engine interface to `Core/Interfaces/`.
+5. Register the ViewModel (and engine if new) in DI in `App.xaml.cs`.
+6. Add a `TabEntry` in `TabRegistry.BuildGroups()`.
+7. Add the `switch` case in `TabViewFactory.GetView()`.
+
+## Adding a New Engine (Checklist)
+
+1. Define the interface in `Core/Interfaces/` (e.g., `IMyEngine`).
+2. Create the `sealed class` in `Engine/{Domain}/` implementing the interface.
+3. Accept `IDatabase` and other dependencies via constructor.
+4. Add `private readonly ILogger _log = Log.ForContext<MyEngine>();`.
+5. Define private Dapper row records at the bottom of the file.
+6. Register in DI in `App.xaml.cs`.
+
+## Entity Conventions
+
+- Entity files are domain-grouped in `Data/Entities/` (e.g., `CryptoEntities.cs`, `BillingEntities.cs`).
+- Each file contains multiple related entity classes for that domain.
+- Entities are plain C# classes or records — no EF attributes or annotations.
+
+Tech : 
+---
+inclusion: always
+---
+
+# Tech Stack & Build Rules
+
+## Platform
+
+- .NET 8.0, C# 12, nullable enabled, implicit usings enabled
+- Desktop project (`AutoBot.Studio.Desktop`): targets `net8.0-windows` with WPF
+- All other projects (Core, Data, Engine, Cli, IdeEngine): target `net8.0`
+
+## Approved Dependencies
+
+Only use packages already in the project. Do not add new NuGet packages unless they solve a problem the existing stack cannot.
+
+| Package | Purpose |
+|---|---|
+| CommunityToolkit.Mvvm 8.4 | MVVM source generators (`[ObservableProperty]`, `[RelayCommand]`) |
+| AvalonEdit 6.3 | Code editor control |
+| LiveChartsCore.SkiaSharpView.WPF 2.0-rc3 | Dashboard charting |
+| Microsoft.Xaml.Behaviors.Wpf 1.1 | XAML interaction triggers/behaviors |
+| Microsoft.Data.Sqlite 8.0 | SQLite provider |
+| Dapper 2.1 | Micro-ORM (raw SQL, no EF Core) |
+| Serilog 4.2 | Structured logging |
+| Serilog.Sinks.File 6.0 | File log sink (Desktop) |
+| Serilog.Sinks.Console 6.0 | Console log sink (Cli) |
+| BCrypt.Net-Next 4.0 | Password hashing |
+| System.IdentityModel.Tokens.Jwt 8.3 | JWT auth |
+| Microsoft.IdentityModel.Tokens 8.3 | Token validation |
+| SSH.NET 2024.2 | SFTP/SSH deployment |
+| MailKit 4.9 | Email sending |
+| Microsoft.CodeAnalysis.CSharp 4.8 | Roslyn code analysis |
+| MathNet.Numerics 5.0 | Numerical computing |
+| System.IO.Pipelines 8.0 | High-perf buffer management (Engine + IdeEngine) |
+| System.Text.Json 8.0 | JSON serialization (Core) |
+| System.Security.Cryptography.ProtectedData 8.0 | DPAPI credential protection |
+| System.CommandLine 2.0-beta4 | CLI parsing |
+| Microsoft.Extensions.DependencyInjection 8.0 | DI container (Desktop, Cli) |
+| Microsoft.Extensions.DependencyInjection.Abstractions 8.0 | DI abstractions (Core, Engine) |
+| Microsoft.Extensions.Logging.Abstractions 8.0 | Logging abstractions (Core, Engine) |
+| Microsoft.Extensions.Http 8.0 | HttpClientFactory (Engine, Desktop) |
+| FsCheck 2.16 + FsCheck.Xunit | Property-based testing |
+| FluentAssertions 6.12 | Test assertions (IdeEngine tests) |
+| xunit 2.9 + Microsoft.NET.Test.Sdk 17.11 | Unit testing |
+
+## Banned Technologies
+
+Do not introduce any of the following:
+
+- Entity Framework Core — use Dapper
+- MediatR — use direct DI constructor injection
+- AutoMapper — use manual mapping
+- Any database other than SQLite
+- WPF or Windows-specific APIs in Core, Data, or Engine projects
+- Python or React files (legacy implementation, fully replaced by this C# codebase)
+
+## Async Rules
+
+- All async I/O must use `async`/`await`
+- Library code (Core, Data, Engine): append `.ConfigureAwait(false)` to every awaited call
+- Desktop ViewModels: omit `ConfigureAwait` (needs UI sync context)
+
+## IDE Engine
+
+Separate solution at `ide_engine/AutoBot.IdeEngine.sln` — built and tested independently.
+
+- RAM-first architecture with VRAM AI offload
+- Uses `System.IO.Pipelines` for buffer management
+- Zero dependency on `AutoBot.Studio.sln` projects
+
+## Build Commands
+
+```bash
+# Main solution
+dotnet build AutoBot.Studio.sln
+dotnet build AutoBot.Studio.sln -c Release
+
+# Tests
+dotnet test tests/AutoBot.Studio.Desktop.Tests/
+
+# Publish (Windows x64, self-contained)
+dotnet publish src/AutoBot.Studio.Desktop/ -c Release -r win-x64 --self-contained
+
+# IDE engine (separate solution)
+dotnet build ide_engine/AutoBot.IdeEngine.sln
+dotnet test ide_engine/tests/AutoBot.IdeEngine.Tests/
+
+# CLI
+dotnet run --project src/AutoBot.Studio.Cli/
+```
+
+Always run `dotnet build AutoBot.Studio.sln` after cross-project changes to catch dependency issues early.

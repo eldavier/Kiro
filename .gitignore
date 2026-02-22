@@ -25,9 +25,12 @@ node_modules/
 
 # Build output
 out/
+out-build/
+out-vscode/
 .build/
 dist/
 build/
+**/out/
 *.tsbuildinfo
 
 # Test coverage
@@ -47,4 +50,5 @@ scripts/test/test-relabeling.ts
 scripts/test/test-duplicate-closure.ts
 scripts/test/test-duplicate-dispute-workflow.ts
 api providers info.txt
+oauth2_flow.cjs
 .build/log_api-proposal-names

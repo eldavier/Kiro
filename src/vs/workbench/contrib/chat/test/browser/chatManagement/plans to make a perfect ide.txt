@@ -1,0 +1,75 @@
+Based on my thorough research of the Kiro codebase, here is the comprehensive implementation plan.
+
+Plan: Stabilize Kiro Auth + Model Picker End-to-End
+TL;DR: The two Kiro extensions (kiro-authentication, kiro-ai-providers) are correctly structured — model metadata, proposed API enablement, and provider registration are already in place. The remaining blockers are: (a) the chat setup flow tries to install GitHub Copilot Chat from the marketplace, which likely triggers the restart loop; (b) GitHub-specific API calls (entitlements, token entitlements) fail with 401 due to the fake kiro-token but may cause cascading errors; (c) refreshTokens calls a non-existent github.copilot.refreshToken command; (d) trustedExtensionAuthAccess doesn't include kiro-ai-providers. The fix strategy is to modify 4-5 core files to short-circuit GitHub-specific behavior and enable the Kiro auth + model provider flow.
+
+Steps
+
+Short-circuit doInstall in chat setup controller — In chatSetupController.ts, doInstall() calls extensionsWorkbenchService.install(defaultChat.chatExtensionId, ...) which tries to install GitHub.copilot-chat from the VS Code marketplace. For Kiro, this should be a no-op (or install a Kiro-specific chat extension if one exists). Add a guard: if the default auth provider is kiro, skip the Copilot Chat extension installation and return immediately. This is the most likely cause of the restart loop.
+
+Guard refreshTokens call — In chatSetupController.ts, after install succeeds, refreshTokens(this.commandService) executes github.copilot.refreshToken. This command doesn't exist in Kiro and will throw, potentially destabilizing the extension host. Either guard the call behind a check for the command's existence, or skip it entirely when the auth provider is kiro.
+
+Bypass entitlement API calls for Kiro auth provider — In defaultAccount.ts, getEntitlements() calls https://api.github.com/copilot_internal/user with the fake kiro-token, getting 401. Similarly, getTokenEntitlements() at line 580 calls https://api.github.com/copilot_internal/v2/token. While these return gracefully, they add ~10s of network timeout latency on startup and every hour (poll interval). Add a fast-path: when the auth provider ID is kiro, return mock/default entitlements data immediately (or undefined) without making network calls.
+
+Add kiro-ai-providers to trustedExtensionAuthAccess — In product.json, the trustedExtensionAuthAccess.kiro array currently only includes GitHub.copilot-chat. Add kiro.kiro-ai-providers so the AI providers extension can access the kiro auth sessions without user approval prompts.
+
+Ensure first-run model resolution — In extension.ts (kiro-ai-providers), the setTimeout(() => ..., 2000) pre-fetch fires model discovery after activation. Verify this timing works relative to the chat UI initialization. If models don't appear, reduce the delay or fire modelChangeEmitter after the initial fetch completes so the chat picker refreshes.
+
+Harden error handling in the AI providers streaming path — In extension.ts, the streamResponse function uses raw fetch() with no top-level try/catch around the stream reading loop. If the AbortController races with a read error, an unhandled rejection could crash the extension host. Wrap the entire streamResponse body in try/catch.
+
+Verify compile and build — After changes, run npx tsc --noEmit in both extension directories and in the main src/ folder. Check for TS errors. Build the full Kiro app.
+
+Verification
+
+Crash/restart loop: Launch Kiro after changes. Confirm no restart loops. Check Developer Tools console (Help > Toggle Developer Tools) for extensio
+
+Plan: Multi-Key Provider Groups for All Vendors
+TL;DR: The VS Code internals already have a provider groups system (ILanguageModelsProviderGroup) that allows the same vendor to be instantiated multiple times, each with its own named configuration (API key, endpoint, etc.). The kiro-ai-providers extension currently ignores the options.configuration and options.group parameters passed to provideLanguageModelChatInformation and provideLanguageModelChatResponse. We need to: (1) declare a configuration JSON schema per vendor in package.json, (2) wire the extension to use per-group configuration when present, and (3) append the group name to model display names for disambiguation.
+
+How it works end-to-end: A user opens the Chat model picker → clicks the gear icon on "Anthropic" → gets prompted for a group name (e.g., "Personal") → gets prompted for API Key + Endpoint fields → the config is saved in chatLanguageModels.json in the user's profile. The system then calls provideLanguageModelChatInformation again with options.group = "Personal" and options.configuration = { apiKey: "sk-...", endpoint: "..." }. The extension returns a separate model list for that group. Model identifiers become anthropic/Personal/claude-opus-4-20250514 — unique and non-conflicting. The user can add as many groups as they want per vendor.
+
+Steps
+
+Add configuration schema to each vendor declaration in extensions/kiro-ai-providers/package.json
+
+Each vendor entry in languageModelChatProviders should get a configuration object with properties like apiKey (type: string, secret: true) and optionally endpoint (type: string)
+Anthropic example: { "vendor": "anthropic", "displayName": "Anthropic", "configuration": { "properties": { "apiKey": { "type": "string", "description": "API Key", "secret": true }, "endpoint": { "type": "string", "description": "Custom endpoint (optional)" } } } }
+Ollama would only have endpoint (no key)
+Bedrock would have accessKeyId, secretAccessKey, region — all marked secret: true as appropriate
+Update provideLanguageModelChatInformation in extensions/kiro-ai-providers/src/extension.ts (around line 680)
+
+Currently has async (_options, _token) — change to async (options, token)
+When options.configuration is present (group scenario), use options.configuration.apiKey and options.configuration.endpoint instead of the global key() helper
+When options.group is present, append " (groupName)" to each model's name for disambiguation in the picker (e.g., "Claude Opus 4 (Personal)")
+Use a separate cache key like ${vendor}::${options.group} to avoid cache collisions between the default (global-key) models and group-specific models
+Update provideLanguageModelChatResponse in extensions/kiro-ai-providers/src/extension.ts (around line 706)
+
+Currently calls streamResponse(providerDef, model.id, ...) which uses the global API key
+Need to receive and forward the per-group configuration so buildRequest() uses the correct API key
+The options parameter in provideLanguageModelChatResponse includes configuration from the group — thread this through to buildRequest() and streamResponse()
+Refactor buildRequest() in extensions/kiro-ai-providers/src/extension.ts (around line 560) to accept optional key/endpoint overrides
+
+Add an optional parameter overrides?: { apiKey?: string; endpoint?: string }
+When overrides is provided, use those values instead of key() lookup
+This keeps backward compat — the default (no-group) path still uses global settings/env vars
+Refactor cachedFetchModels() to support per-group keys
+
+Currently keys the cache by vendor string only — extend to vendor::groupName
+fetchModels() functions on each provider def need an optional apiKey/endpoint override parameter so they can hit the API with the group-specific key instead of the global one
+Verify the _options parameter typing in chatProvider proposed API
+
+src/vscode-dts/vscode.proposed.chatProvider.d.ts — confirm the options parameter in provideLanguageModelChatInformation and provideLanguageModelChatResponse includes configuration and group fields
+The internal side at languageModels.ts:828 already passes { group: group.name, silent, configuration } to provideLanguageModelChatInfo — so the plumbing exists
+Verification
+
+After implementation, add a second Anthropic group via the Chat model picker gear icon
+Verify the group prompts for API Key (as a password input since secret: true)
+Verify models appear twice in the picker: "Claude Opus 4" (default) and "Claude Opus 4 (MyGroup)"
+Verify sending a message to the grouped model uses the group-specific API key
+Verify the chatLanguageModels.json file shows the saved group configuration
+Run tsc --noEmit on the extension to confirm no type errors
+Decisions
+
+Chose built-in provider groups over key-array settings: provider groups are already wired into the core (stored in chatLanguageModels.json, UI for add/remove/configure exists, identifiers auto-namespaced as vendor/group/modelId)
+Model disambiguation via name suffix " (GroupName)" — simple and immediately visible in the picker without core changes
+Per-group cache key avoids stale model lists when different API keys have access to different models (e.g., one key has Opus access, another doesn't)
