@@ -11,6 +11,7 @@
 	"nameLong": "Kiro",
 	"applicationName": "kiro",
 	"dataFolderName": ".kiro-dev",
+	"appDataFolderName": "Kiro Dev",
 	"win32MutexName": "kiro-dev",
 	"licenseName": "MIT",
 	"licenseUrl": "https://github.com/kirodotdev/Kiro/blob/main/LICENSE.txt",

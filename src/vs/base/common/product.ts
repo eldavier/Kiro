@@ -82,6 +82,7 @@ export interface IProductConfiguration {
 
 	readonly urlProtocol: string;
 	readonly dataFolderName: string; // location for extensions (e.g. ~/.vscode-insiders)
+	readonly appDataFolderName?: string; // overrides nameShort for %APPDATA% user data path (e.g. 'Kiro Dev')
 
 	readonly builtInExtensions?: IBuiltInExtension[];
 	readonly walkthroughMetadata?: IProductWalkthrough[];
