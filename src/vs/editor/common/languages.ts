@@ -2395,10 +2395,21 @@ export interface CommentThreadChangedEvent<T> {
 	readonly changed: CommentThread<T>[];
 }
 
+export interface CodeLensRenderOptions {
+	color?: string;
+	borderColor?: string;
+	fontSize?: number;
+	iconSize?: number;
+	actionPadding?: number;
+	fontFamily?: string;
+	indent?: number;
+}
+
 export interface CodeLens {
 	range: IRange;
 	id?: string;
 	command?: Command;
+	renderOptions?: CodeLensRenderOptions;
 }
 
 export interface CodeLensList {

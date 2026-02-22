@@ -1,0 +1,28 @@
+{
+  "$schema": "./team-preset.schema.json",
+  "name": "Free Tier",
+  "description": "Uses only free models — great for experimentation without API costs. Uses GitHub Models (free), Ollama (local), or Groq free-tier models.",
+  "icon": "sparkle",
+  "agents": {
+    "Orchestrator": {
+      "model": ["llama-3.3-70b-versatile", "llama3.1:8b", "gpt-4o-mini"],
+      "reason": "Lightweight coordination — Groq Llama 70B (fast + free), Ollama local, or GitHub Models GPT-4o-mini"
+    },
+    "Analyser": {
+      "model": ["llama-3.3-70b-versatile", "deepseek-chat", "gpt-4o-mini"],
+      "reason": "Code analysis — Groq Llama 70B, DeepSeek V3 (cheap), or GitHub Models GPT-4o-mini"
+    },
+    "Planner": {
+      "model": ["llama-3.3-70b-versatile", "deepseek-chat", "gpt-4o-mini"],
+      "reason": "Plan generation — Groq Llama 70B, DeepSeek V3 (cheap), or GitHub Models GPT-4o-mini"
+    },
+    "SkillAttributer": {
+      "model": ["llama-3.3-70b-versatile", "llama3.1:8b", "gpt-4o-mini"],
+      "reason": "Task decomposition — Groq Llama 70B, Ollama local, or GitHub Models GPT-4o-mini"
+    },
+    "Coder": {
+      "model": ["deepseek-chat", "llama-3.3-70b-versatile", "gpt-4o-mini"],
+      "reason": "Code generation — DeepSeek V3 (excellent coder, cheap), Groq Llama 70B, or GitHub Models GPT-4o-mini"
+    }
+  }
+}

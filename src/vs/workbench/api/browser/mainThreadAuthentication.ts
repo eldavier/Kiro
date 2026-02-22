@@ -29,6 +29,7 @@ import { IDynamicAuthenticationProviderStorageService } from '../../services/aut
 import { IClipboardService } from '../../../platform/clipboard/common/clipboardService.js';
 import { IQuickInputService } from '../../../platform/quickinput/common/quickInput.js';
 import { IProductService } from '../../../platform/product/common/productService.js';
+import { ISignInController, ISignInService } from '../../services/authentication/common/signInService.js';
 
 export interface AuthenticationInteractiveOptions {
 	detail?: string;
@@ -106,6 +107,25 @@ class MainThreadAuthenticationProviderWithChallenges extends MainThreadAuthentic
 	}
 }
 
+/**
+ * Bridge proxy that allows the main thread to call back to the ext host's
+ * sign-in controller ($signIn / $cancelSignIn).
+ */
+class MainThreadSignInControllerProxy implements ISignInController {
+	constructor(
+		private readonly _proxy: ExtHostAuthenticationShape,
+		private readonly _providerId: string,
+	) { }
+
+	async signIn(providerConfiguration?: unknown): Promise<AuthenticationSession> {
+		return this._proxy.$signIn(this._providerId, providerConfiguration);
+	}
+
+	cancelSignIn(): void {
+		this._proxy.$cancelSignIn(this._providerId);
+	}
+}
+
 @extHostNamedCustomer(MainContext.MainThreadAuthentication)
 export class MainThreadAuthentication extends Disposable implements MainThreadAuthenticationShape {
 	private readonly _proxy: ExtHostAuthenticationShape;
@@ -130,7 +150,8 @@ export class MainThreadAuthentication extends Disposable implements MainThreadAu
 		@IURLService private readonly urlService: IURLService,
 		@IDynamicAuthenticationProviderStorageService private readonly dynamicAuthProviderStorageService: IDynamicAuthenticationProviderStorageService,
 		@IClipboardService private readonly clipboardService: IClipboardService,
-		@IQuickInputService private readonly quickInputService: IQuickInputService
+		@IQuickInputService private readonly quickInputService: IQuickInputService,
+		@ISignInService private readonly signInService: ISignInService
 	) {
 		super();
 		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostAuthentication);
@@ -316,6 +337,19 @@ export class MainThreadAuthentication extends Disposable implements MainThreadAu
 			clientSecret,
 			label || existing.label
 		);
+	}
+
+	$registerSignInController(providerId: string, options?: { isInternalUser?: boolean }): void {
+		const proxy = new MainThreadSignInControllerProxy(this._proxy, providerId);
+		this.signInService.registerSignInController(providerId, proxy, options);
+	}
+
+	$unregisterSignInController(providerId: string): void {
+		this.signInService.unregisterSignInController(providerId);
+	}
+
+	$sendDidReceiveSignInRequest(providerId: string): void {
+		this.signInService.showSignInPage(providerId);
 	}
 
 	private async loginPrompt(provider: IAuthenticationProvider, extensionName: string, recreatingSession: boolean, options?: AuthenticationInteractiveOptions): Promise<boolean> {

@@ -409,6 +409,27 @@ export class CodeLens {
 	}
 }
 
+export interface StyledCodeLensRenderOptions {
+	color?: vscode.ThemeColor;
+	borderColor?: vscode.ThemeColor;
+	fontSize?: number;
+	iconSize?: number;
+	actionPadding?: number;
+	fontFamily?: string;
+	indent?: number;
+}
+
+@es5ClassCompat
+export class StyledCodeLens extends CodeLens {
+
+	renderOptions: StyledCodeLensRenderOptions;
+
+	constructor(renderOptions: StyledCodeLensRenderOptions, range: Range, command?: vscode.Command) {
+		super(range, command);
+		this.renderOptions = renderOptions;
+	}
+}
+
 @es5ClassCompat
 export class ParameterInformation {
 

@@ -39,6 +39,8 @@ export const AICustomizationManagementSection = {
 	Instructions: 'instructions',
 	Prompts: 'prompts',
 	Hooks: 'hooks',
+	AgentTeams: 'agentTeams',
+	TeamMemory: 'teamMemory',
 	McpServers: 'mcpServers',
 	Models: 'models',
 } as const;

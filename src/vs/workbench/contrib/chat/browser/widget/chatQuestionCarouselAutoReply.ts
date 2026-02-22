@@ -146,10 +146,14 @@ export class ChatQuestionCarouselAutoReply extends Disposable {
 
 		if (modelName.startsWith('copilot/')) {
 			models = await this.languageModelsService.selectLanguageModels({ vendor: 'copilot', family: modelName.replace(/^copilot\//, '') });
-			return models[0];
+			if (models.length > 0) {
+				return models[0];
+			}
 		}
 
-		return undefined;
+		// Fall back to any available model if copilot vendor not found
+		models = await this.languageModelsService.selectLanguageModels({});
+		return models.length > 0 ? models[0] : undefined;
 	}
 
 	private buildPrompt(carousel: IChatQuestionCarousel, requestMessageText: string | undefined, strict: boolean): string {

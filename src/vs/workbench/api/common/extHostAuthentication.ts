@@ -46,6 +46,7 @@ export class ExtHostAuthentication implements ExtHostAuthenticationShape {
 
 	private _proxy: MainThreadAuthenticationShape;
 	private _authenticationProviders: Map<string, ProviderWithMetadata> = new Map<string, ProviderWithMetadata>();
+	private _signInControllers: Map<string, vscode.AuthenticationSignInController> = new Map<string, vscode.AuthenticationSignInController>();
 	private _providerOperations = new SequencerByKey<string>();
 
 	private _onDidChangeSessions = new Emitter<vscode.AuthenticationSessionsChangeEvent & { extensionIdFilter?: string[] }>();
@@ -163,6 +164,37 @@ export class ExtHostAuthentication implements ExtHostAuthenticationShape {
 				}
 			});
 		});
+	}
+
+	registerSignInController(providerId: string, controller: vscode.AuthenticationSignInController, options?: { isInternalUser?: boolean }): vscode.Disposable {
+		if (this._signInControllers.get(providerId)) {
+			throw new Error(`A sign-in controller with id '${providerId}' is already registered.`);
+		}
+		const listener = controller.onDidReceiveSignInRequest(() => this._proxy.$sendDidReceiveSignInRequest(providerId));
+		this._signInControllers.set(providerId, controller);
+		this._proxy.$registerSignInController(providerId, options);
+		return new Disposable(() => {
+			listener.dispose();
+			this._signInControllers.delete(providerId);
+			this._proxy.$unregisterSignInController(providerId);
+		});
+	}
+
+	async $signIn(providerId: string, providerConfiguration?: unknown): Promise<vscode.AuthenticationSession> {
+		const controller = this._signInControllers.get(providerId);
+		if (controller) {
+			return await controller.signIn(providerConfiguration);
+		}
+		throw new Error(`Unable to find sign-in controller with id: ${providerId}`);
+	}
+
+	$cancelSignIn(providerId: string): void {
+		const controller = this._signInControllers.get(providerId);
+		if (controller) {
+			controller.cancelSignIn();
+			return;
+		}
+		throw new Error(`Unable to find sign-in controller with id: ${providerId}`);
 	}
 
 	$createSession(providerId: string, scopes: string[], options: vscode.AuthenticationProviderSessionOptions): Promise<vscode.AuthenticationSession> {

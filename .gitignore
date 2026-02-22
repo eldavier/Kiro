@@ -24,6 +24,8 @@ yarn-error.log*
 node_modules/
 
 # Build output
+out/
+.build/
 dist/
 build/
 *.tsbuildinfo
@@ -44,3 +46,5 @@ scripts/test/ISSUE_TRIAGE_WORKFLOW_TEST.md
 scripts/test/test-relabeling.ts
 scripts/test/test-duplicate-closure.ts
 scripts/test/test-duplicate-dispute-workflow.ts
+api providers info.txt
+.build/log_api-proposal-names

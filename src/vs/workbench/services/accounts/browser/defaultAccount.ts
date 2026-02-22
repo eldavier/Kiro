@@ -580,6 +580,17 @@ class DefaultAccountProvider extends Disposable implements IDefaultAccountProvid
 	}
 
 	private async requestTokenEntitlements(sessions: AuthenticationSession[]): Promise<Partial<IPolicyData> | undefined> {
+		// Kiro: bypass GitHub token entitlements API — return permissive defaults
+		const authProvider = this.getDefaultAccountAuthenticationProvider();
+		if (authProvider.id === 'kiro') {
+			this.logService.debug('[DefaultAccount] Kiro auth provider — returning default token entitlements (skipping GitHub API)');
+			return {
+				chat_preview_features_enabled: true,
+				chat_agent_enabled: true,
+				mcp: true,
+			};
+		}
+
 		const tokenEntitlementsUrl = this.getTokenEntitlementUrl();
 		if (!tokenEntitlementsUrl) {
 			this.logService.debug('[DefaultAccount] No token entitlements URL found');
@@ -618,6 +629,13 @@ class DefaultAccountProvider extends Disposable implements IDefaultAccountProvid
 	}
 
 	private async getEntitlements(sessions: AuthenticationSession[]): Promise<IEntitlementsData | undefined | null> {
+		// Kiro: bypass GitHub entitlement API calls — Kiro manages entitlements locally
+		const authProvider = this.getDefaultAccountAuthenticationProvider();
+		if (authProvider.id === 'kiro') {
+			this.logService.debug('[DefaultAccount] Kiro auth provider — returning default entitlements (skipping GitHub API)');
+			return { individual: true } as IEntitlementsData;
+		}
+
 		const entitlementUrl = this.getEntitlementUrl();
 		if (!entitlementUrl) {
 			this.logService.debug('[DefaultAccount] No chat entitlements URL found');

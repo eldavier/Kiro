@@ -1,0 +1,7 @@
+{
+  "name": "test",
+  "description": "Best for me",
+  "icon": "bookmark",
+  "agents": {},
+  "$schema": "./team-preset.schema.json"
+}

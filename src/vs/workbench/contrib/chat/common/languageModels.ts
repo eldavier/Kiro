@@ -906,7 +906,8 @@ export class LanguageModelsService implements ILanguageModelsService {
 
 		this._providers.set(vendor, provider);
 
-		if (this._hasStoredModelForVendor(vendor)) {
+		const shouldResolveImmediately = this._hasStoredModelForVendor(vendor) || !this._vendors.get(vendor)?.isDefault;
+		if (shouldResolveImmediately) {
 			this._resolveAllLanguageModels(vendor, true);
 		}
 

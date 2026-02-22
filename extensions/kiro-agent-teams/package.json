@@ -1,0 +1,142 @@
+{
+  "name": "kiro-agent-teams",
+  "displayName": "Kiro Agent Teams",
+  "description": "Manage agent team presets — assign models to each agent role and switch between Free, Balanced, and Best Quality configurations.",
+  "version": "1.0.0",
+  "publisher": "kiro",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "enabledApiProposals": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kiro-agent-teams-panel",
+          "title": "Kiro Agent Teams",
+          "icon": "$(organization)"
+        }
+      ]
+    },
+    "views": {
+      "kiro-agent-teams-panel": [
+        {
+          "id": "kiroAgentTeams.presetsView",
+          "name": "Team Presets",
+          "icon": "$(organization)",
+          "contextualTitle": "Agent Team Presets"
+        },
+        {
+          "id": "kiroAgentTeams.currentTeamView",
+          "name": "Current Team",
+          "icon": "$(person)",
+          "contextualTitle": "Current Agent Configuration"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "kiroAgentTeams.applyPreset",
+        "title": "Apply Team Preset",
+        "category": "Kiro Agent Teams",
+        "icon": "$(check)"
+      },
+      {
+        "command": "kiroAgentTeams.saveCustomPreset",
+        "title": "Save Current Config as Preset",
+        "category": "Kiro Agent Teams",
+        "icon": "$(save)"
+      },
+      {
+        "command": "kiroAgentTeams.changeAgentModel",
+        "title": "Change Agent Model",
+        "category": "Kiro Agent Teams",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "kiroAgentTeams.refreshPresets",
+        "title": "Refresh Team Presets",
+        "category": "Kiro Agent Teams",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "kiroAgentTeams.openAgentFile",
+        "title": "Open Agent File",
+        "category": "Kiro Agent Teams",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "kiroAgentTeams.deletePreset",
+        "title": "Delete Preset",
+        "category": "Kiro Agent Teams",
+        "icon": "$(trash)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "kiroAgentTeams.refreshPresets",
+          "when": "view == kiroAgentTeams.presetsView",
+          "group": "navigation"
+        },
+        {
+          "command": "kiroAgentTeams.saveCustomPreset",
+          "when": "view == kiroAgentTeams.currentTeamView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "kiroAgentTeams.applyPreset",
+          "when": "view == kiroAgentTeams.presetsView && viewItem == preset",
+          "group": "inline"
+        },
+        {
+          "command": "kiroAgentTeams.deletePreset",
+          "when": "view == kiroAgentTeams.presetsView && viewItem == customPreset"
+        },
+        {
+          "command": "kiroAgentTeams.changeAgentModel",
+          "when": "view == kiroAgentTeams.currentTeamView && viewItem == agentModel",
+          "group": "inline"
+        },
+        {
+          "command": "kiroAgentTeams.openAgentFile",
+          "when": "view == kiroAgentTeams.currentTeamView && viewItem == agentModel"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Kiro Agent Teams",
+      "properties": {
+        "kiro.agentTeams.activePreset": {
+          "type": "string",
+          "default": "",
+          "description": "The currently active team preset name."
+        },
+        "kiro.agentTeams.agentsDirectory": {
+          "type": "string",
+          "default": ".github/agents",
+          "description": "Directory containing agent .md files."
+        },
+        "kiro.agentTeams.teamsDirectory": {
+          "type": "string",
+          "default": ".github/teams",
+          "description": "Directory containing team preset JSON files."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0"
+  }
+}

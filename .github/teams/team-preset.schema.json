@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Kiro Agent Team Preset",
+  "description": "Defines a team preset that maps each agent to its preferred model(s). The first available model in each list is used.",
+  "type": "object",
+  "required": ["name", "agents"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": {
+      "type": "string",
+      "description": "Display name for the preset"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the preset's philosophy"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Codicon icon name (without codicon- prefix)"
+    },
+    "agents": {
+      "type": "object",
+      "description": "Map of agent name → model configuration",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["model"],
+        "properties": {
+          "model": {
+            "oneOf": [
+              { "type": "string", "description": "Single model ID" },
+              { "type": "array", "items": { "type": "string" }, "description": "Ordered list of model IDs (first available is used)" }
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why this model was chosen for this agent role"
+          }
+        }
+      }
+    }
+  }
+}

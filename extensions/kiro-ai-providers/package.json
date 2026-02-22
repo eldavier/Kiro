@@ -1,0 +1,355 @@
+{
+  "name": "kiro-ai-providers",
+  "displayName": "Kiro AI Providers",
+  "description": "Provides custom AI models for Kiro Chat (Anthropic, OpenAI, GitHub Models, GitHub Copilot, OpenRouter, Gemini, Vertex AI, Azure OpenAI, Groq, DeepSeek, Ollama, Bedrock, HuggingFace, Perplexity, Requesty, Vercel AI, You.com Pro)",
+  "version": "1.0.0",
+  "publisher": "kiro",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "enabledApiProposals": [
+    "chatProvider",
+    "languageModelThinkingPart"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languageModelChatProviders": [
+      {
+        "vendor": "anthropic",
+        "displayName": "Anthropic",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "Anthropic API Key", "secret": true },
+            "endpoint": { "type": "string", "description": "Custom API endpoint (optional)" }
+          }
+        }
+      },
+      {
+        "vendor": "openai",
+        "displayName": "OpenAI",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "OpenAI API Key", "secret": true },
+            "endpoint": { "type": "string", "description": "Custom API endpoint (optional)" }
+          }
+        }
+      },
+      {
+        "vendor": "github-models",
+        "displayName": "GitHub Models",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "GitHub Personal Access Token", "secret": true }
+          }
+        }
+      },
+      {
+        "vendor": "openrouter",
+        "displayName": "OpenRouter",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "OpenRouter API Key", "secret": true }
+          }
+        }
+      },
+      {
+        "vendor": "gemini",
+        "displayName": "Google Gemini",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "Gemini API Key", "secret": true }
+          }
+        }
+      },
+      {
+        "vendor": "bedrock",
+        "displayName": "AWS Bedrock",
+        "configuration": {
+          "properties": {
+            "accessKeyId": { "type": "string", "description": "AWS Access Key ID", "secret": true },
+            "secretAccessKey": { "type": "string", "description": "AWS Secret Access Key", "secret": true },
+            "region": { "type": "string", "description": "AWS Region (e.g. us-east-1)" }
+          }
+        }
+      },
+      {
+        "vendor": "groq",
+        "displayName": "Groq",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "Groq API Key", "secret": true }
+          }
+        }
+      },
+      {
+        "vendor": "deepseek",
+        "displayName": "DeepSeek",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "DeepSeek API Key", "secret": true }
+          }
+        }
+      },
+      {
+        "vendor": "ollama",
+        "displayName": "Ollama",
+        "configuration": {
+          "properties": {
+            "endpoint": { "type": "string", "description": "Ollama endpoint URL (e.g. http://localhost:11434)" }
+          }
+        }
+      },
+      {
+        "vendor": "github-copilot",
+        "displayName": "GitHub Copilot",
+        "configuration": {
+          "properties": {}
+        }
+      },
+      {
+        "vendor": "vertex-ai",
+        "displayName": "Google Vertex AI",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "Vertex AI API Key or service account token", "secret": true },
+            "region": { "type": "string", "description": "GCP Region (e.g. us-east5)" }
+          }
+        }
+      },
+      {
+        "vendor": "azure-openai",
+        "displayName": "Azure OpenAI",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "Azure OpenAI API Key", "secret": true },
+            "endpoint": { "type": "string", "description": "Azure OpenAI Endpoint URL" }
+          }
+        }
+      },
+      {
+        "vendor": "huggingface",
+        "displayName": "HuggingFace",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "HuggingFace Access Token", "secret": true }
+          }
+        }
+      },
+      {
+        "vendor": "perplexity",
+        "displayName": "Perplexity",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "Perplexity API Key", "secret": true }
+          }
+        }
+      },
+      {
+        "vendor": "requesty",
+        "displayName": "Requesty",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "Requesty API Key", "secret": true }
+          }
+        }
+      },
+      {
+        "vendor": "vercel-ai",
+        "displayName": "Vercel AI",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "Vercel AI API Key", "secret": true }
+          }
+        }
+      },
+      {
+        "vendor": "youpro",
+        "displayName": "You.com Pro",
+        "configuration": {
+          "properties": {
+            "apiKey": { "type": "string", "description": "You.com Pro API Key", "secret": true }
+          }
+        }
+      }
+    ],
+    "configuration": {
+      "title": "Kiro AI",
+      "properties": {
+        "kiro.ai.anthropicApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API key (or set ANTHROPIC_API_KEY env var)",
+          "order": 1
+        },
+        "kiro.ai.anthropicEndpoint": {
+          "type": "string",
+          "default": "",
+          "description": "Custom Anthropic API endpoint (optional)",
+          "order": 2
+        },
+        "kiro.ai.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API key (or set OPENAI_API_KEY env var)",
+          "order": 3
+        },
+        "kiro.ai.openaiEndpoint": {
+          "type": "string",
+          "default": "",
+          "description": "Custom OpenAI API endpoint (optional)",
+          "order": 4
+        },
+        "kiro.ai.githubModelsToken": {
+          "type": "string",
+          "default": "",
+          "description": "GitHub personal access token for GitHub Models (or set GITHUB_MODELS_TOKEN / GITHUB_TOKEN env var)",
+          "order": 5
+        },
+        "kiro.ai.openrouterApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenRouter API key (or set OPENROUTER_API_KEY env var)",
+          "order": 6
+        },
+        "kiro.ai.geminiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Google Gemini API key (or set GOOGLE_API_KEY / GEMINI_API_KEY env var)",
+          "order": 7
+        },
+        "kiro.ai.groqApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Groq API key (or set GROQ_API_KEY env var)",
+          "order": 8
+        },
+        "kiro.ai.deepseekApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "DeepSeek API key (or set DEEPSEEK_API_KEY env var)",
+          "order": 9
+        },
+        "kiro.ai.ollamaEndpoint": {
+          "type": "string",
+          "default": "",
+          "description": "Ollama endpoint (default: http://localhost:11434)",
+          "order": 10
+        },
+        "kiro.ai.bedrockAccessKeyId": {
+          "type": "string",
+          "default": "",
+          "description": "AWS Access Key ID for Bedrock (or set AWS_ACCESS_KEY_ID env var)",
+          "order": 11
+        },
+        "kiro.ai.bedrockSecretAccessKey": {
+          "type": "string",
+          "default": "",
+          "description": "AWS Secret Access Key for Bedrock (or set AWS_SECRET_ACCESS_KEY env var)",
+          "order": 12
+        },
+        "kiro.ai.bedrockRegion": {
+          "type": "string",
+          "default": "",
+          "description": "AWS Region for Bedrock (e.g. us-east-1, or set AWS_REGION env var)",
+          "order": 13
+        },
+        "kiro.ai.vertexAiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Google Vertex AI API key or service account token (or set VERTEXAI_API_KEY env var)",
+          "order": 14
+        },
+        "kiro.ai.vertexAiProjectId": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud Project ID for Vertex AI (or set GOOGLE_PROJECT_ID env var)",
+          "order": 15
+        },
+        "kiro.ai.vertexAiRegion": {
+          "type": "string",
+          "default": "",
+          "description": "GCP region for Vertex AI (default: us-central1, or set VERTEXAI_REGION env var)",
+          "order": 16
+        },
+        "kiro.ai.vertexAiClientId": {
+          "type": "string",
+          "default": "",
+          "description": "Google OAuth2 Client ID for Vertex AI token refresh",
+          "order": 16
+        },
+        "kiro.ai.vertexAiClientSecret": {
+          "type": "string",
+          "default": "",
+          "description": "Google OAuth2 Client Secret for Vertex AI token refresh",
+          "order": 16
+        },
+        "kiro.ai.vertexAiRefreshToken": {
+          "type": "string",
+          "default": "",
+          "description": "Google OAuth2 Refresh Token for Vertex AI (obtained via authorization flow)",
+          "order": 16
+        },
+        "kiro.ai.azureOpenaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Azure OpenAI API key (or set AZURE_OPENAI_API_KEY env var)",
+          "order": 17
+        },
+        "kiro.ai.azureOpenaiEndpoint": {
+          "type": "string",
+          "default": "",
+          "description": "Azure OpenAI endpoint URL (or set AZURE_OPENAI_ENDPOINT env var)",
+          "order": 18
+        },
+        "kiro.ai.azureOpenaiDeployment": {
+          "type": "string",
+          "default": "",
+          "description": "Azure OpenAI deployment name (or set AZURE_OPENAI_DEPLOYMENT env var)",
+          "order": 19
+        },
+        "kiro.ai.huggingfaceToken": {
+          "type": "string",
+          "default": "",
+          "description": "HuggingFace access token (or set HUGGINGFACE_ACCESS_TOKEN / HF_TOKEN env var)",
+          "order": 20
+        },
+        "kiro.ai.perplexityApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Perplexity API key (or set PERPLEXITY_API_KEY env var)",
+          "order": 21
+        },
+        "kiro.ai.requestyApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Requesty API key (or set REQUESTY_API_KEY env var)",
+          "order": 22
+        },
+        "kiro.ai.vercelAiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Vercel AI API key (or set VERCEL_AI_API_KEY env var)",
+          "order": 23
+        },
+        "kiro.ai.youproApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "You.com Pro API key (or set YOUPRO_API_KEY env var)",
+          "order": 24
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

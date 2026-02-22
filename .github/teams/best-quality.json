@@ -1,0 +1,28 @@
+{
+  "$schema": "./team-preset.schema.json",
+  "name": "Best Quality",
+  "description": "Premium models for maximum quality and reliability. Uses the most capable models for every role.",
+  "icon": "star-full",
+  "agents": {
+    "Orchestrator": {
+      "model": ["claude-opus-4-6-20260221", "gpt-4o", "gemini-2.0-pro"],
+      "reason": "Coordination with top-tier reasoning — Claude Opus 4.6, GPT-4o, or Gemini Pro"
+    },
+    "Analyser": {
+      "model": ["claude-opus-4-6-20260221", "o3", "gemini-2.0-pro"],
+      "reason": "Deepest reasoning for architecture analysis — Claude Opus 4.6, o3, or Gemini Pro"
+    },
+    "Planner": {
+      "model": ["claude-opus-4-6-20260221", "o3", "gpt-4o"],
+      "reason": "Complex planning — Claude Opus 4.6, o3 (top reasoning), or GPT-4o"
+    },
+    "SkillAttributer": {
+      "model": ["claude-sonnet-4-6-20260221", "gpt-4o", "gemini-2.0-pro"],
+      "reason": "Task decomposition — Claude Sonnet 4.6 (efficient premium), GPT-4o, or Gemini Pro"
+    },
+    "Coder": {
+      "model": ["claude-opus-4-6-20260221", "claude-sonnet-4-6-20260221", "o3"],
+      "reason": "Maximum code quality — Claude Opus 4.6, Claude Sonnet 4.6, or o3"
+    }
+  }
+}

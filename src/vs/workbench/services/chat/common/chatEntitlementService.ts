@@ -342,23 +342,14 @@ export class ChatEntitlementService extends Disposable implements IChatEntitleme
 	readonly entitlementObs: IObservable<ChatEntitlement>;
 
 	get entitlement(): ChatEntitlement {
-		if (this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.planPro.key) === true) {
-			return ChatEntitlement.Pro;
-		} else if (this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.planBusiness.key) === true) {
-			return ChatEntitlement.Business;
-		} else if (this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.planEnterprise.key) === true) {
-			return ChatEntitlement.Enterprise;
-		} else if (this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.planProPlus.key) === true) {
-			return ChatEntitlement.ProPlus;
-		} else if (this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.planFree.key) === true) {
-			return ChatEntitlement.Free;
-		} else if (this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.canSignUp.key) === true) {
-			return ChatEntitlement.Available;
-		} else if (this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.signedOut.key) === true) {
-			return ChatEntitlement.Unknown;
-		}
-
-		return ChatEntitlement.Unresolved;
+		// Kiro: use real entitlement from GitHub when signed in, default to Pro when not
+		const real = this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.planPro.key) ? ChatEntitlement.Pro
+			: this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.planProPlus.key) ? ChatEntitlement.ProPlus
+			: this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.planBusiness.key) ? ChatEntitlement.Business
+			: this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.planEnterprise.key) ? ChatEntitlement.Enterprise
+			: this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Entitlement.planFree.key) ? ChatEntitlement.Free
+			: ChatEntitlement.Pro; // Default to Pro so UI is always enabled in Kiro
+		return real;
 	}
 
 	get isInternal(): boolean {
@@ -487,7 +478,7 @@ export class ChatEntitlementService extends Disposable implements IChatEntitleme
 
 	get sentiment(): IChatSentiment {
 		return {
-			installed: this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Setup.installed.key) === true,
+			installed: true, // Always consider chat installed in Kiro
 			hidden: this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Setup.hidden.key) === true,
 			disabled: this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Setup.disabled.key) === true,
 			untrusted: this.contextKeyService.getContextKeyValue<boolean>(ChatEntitlementContextKeys.Setup.untrusted.key) === true,
@@ -638,9 +629,9 @@ export class ChatEntitlementRequests extends Disposable {
 			if (this.state.entitlement === ChatEntitlement.Unknown) {
 				state = { entitlement: ChatEntitlement.Unresolved };
 			}
-		} else {
-			state = { entitlement: ChatEntitlement.Unknown };
 		}
+		// Kiro: do NOT reset to Unknown when no account — keep Pro default for UI visibility
+		// The real entitlement will be resolved when the user signs in with GitHub
 		if (state) {
 			this.update(state);
 		}
@@ -1065,6 +1056,16 @@ export class ChatEntitlementContext extends Disposable {
 		this.registeredContext = ChatEntitlementContextKeys.Setup.registered.bindTo(contextKeyService);
 
 		this._state = this.storageService.getObject<IChatEntitlementContextState>(ChatEntitlementContext.CHAT_ENTITLEMENT_CONTEXT_STORAGE_KEY, StorageScope.PROFILE) ?? { entitlement: ChatEntitlement.Unknown, organisations: undefined, sku: undefined, copilotTrackingId: undefined };
+
+		// Kiro: ensure chat UI is always visible — force installed + registered at boot
+		this._state.installed = true;
+		this._state.registered = true;
+		this._state.hidden = false;
+		this._state.disabled = false;
+		// Default to Pro if no real entitlement yet — real GitHub auth will overwrite this
+		if (this._state.entitlement === ChatEntitlement.Unknown) {
+			this._state.entitlement = ChatEntitlement.Pro;
+		}
 
 		this.updateContextSync();
 

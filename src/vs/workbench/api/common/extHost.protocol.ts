@@ -225,6 +225,9 @@ export interface MainThreadAuthenticationShape extends IDisposable {
 	$registerDynamicAuthenticationProvider(details: IRegisterDynamicAuthenticationProviderDetails): Promise<void>;
 	$setSessionsForDynamicAuthProvider(authProviderId: string, clientId: string, sessions: (IAuthorizationTokenResponse & { created_at: number })[]): Promise<void>;
 	$sendDidChangeDynamicProviderInfo({ providerId, clientId, authorizationServer, label, clientSecret }: { providerId: string; clientId?: string; authorizationServer?: UriComponents; label?: string; clientSecret?: string }): Promise<void>;
+	$registerSignInController(providerId: string, options?: { isInternalUser?: boolean }): void;
+	$unregisterSignInController(providerId: string): void;
+	$sendDidReceiveSignInRequest(providerId: string): void;
 }
 
 export interface MainThreadSecretStateShape extends IDisposable {
@@ -2149,6 +2152,8 @@ export interface ExtHostAuthenticationShape {
 	$onDidUnregisterAuthenticationProvider(id: string): Promise<void>;
 	$registerDynamicAuthProvider(authorizationServer: UriComponents, serverMetadata: IAuthorizationServerMetadata, resource?: IAuthorizationProtectedResourceMetadata, clientId?: string, clientSecret?: string, initialTokens?: (IAuthorizationTokenResponse & { created_at: number })[]): Promise<string>;
 	$onDidChangeDynamicAuthProviderTokens(authProviderId: string, clientId: string, tokens?: (IAuthorizationTokenResponse & { created_at: number })[]): Promise<void>;
+	$signIn(providerId: string, providerConfiguration?: unknown): Promise<AuthenticationSession>;
+	$cancelSignIn(providerId: string): void;
 }
 
 export interface ExtHostAiRelatedInformationShape {

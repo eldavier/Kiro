@@ -1,0 +1,31 @@
+{
+  "name": "kiro-authentication",
+  "displayName": "Kiro Authentication",
+  "description": "Provides Kiro authentication for Kiro Chat",
+  "version": "1.0.0",
+  "publisher": "kiro",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "activationEvents": [
+    "onAuthenticationRequest:kiro"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "authentication": [
+      {
+        "id": "kiro",
+        "label": "Kiro"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -344,6 +344,10 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 					checkProposedApiEnabled(extension, 'authIssuers');
 				}
 				return extHostAuthentication.registerAuthenticationProvider(id, label, provider, options);
+			},
+			registerSignInController(providerId: string, controller: vscode.AuthenticationSignInController, options?: vscode.AuthenticationSignInControllerOptions): vscode.Disposable {
+				checkProposedApiEnabled(extension, 'contribSignInController');
+				return extHostAuthentication.registerSignInController(providerId, controller, options);
 			}
 		};
 
@@ -485,6 +489,10 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			},
 			get appQuality(): string | undefined {
 				checkProposedApiEnabled(extension, 'resolvers');
+				return initData.quality;
+			},
+			get buildQuality(): string | undefined {
+				checkProposedApiEnabled(extension, 'buildQuality');
 				return initData.quality;
 			},
 			get appCommit(): string | undefined {
@@ -997,6 +1005,14 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 					retainContextWhenHidden?: boolean;
 				};
 			}) {
+				return extHostWebviewViews.registerWebviewViewProvider(extension, viewId, provider, options?.webviewOptions);
+			},
+			registerWebviewProvider(viewId: string, provider: vscode.WebviewViewProvider, options?: {
+				webviewOptions?: {
+					retainContextWhenHidden?: boolean;
+				};
+			}) {
+				checkProposedApiEnabled(extension, 'contribWebviewProvider');
 				return extHostWebviewViews.registerWebviewViewProvider(extension, viewId, provider, options?.webviewOptions);
 			},
 			get activeNotebookEditor(): vscode.NotebookEditor | undefined {
@@ -1809,6 +1825,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			CodeActionKind: extHostTypes.CodeActionKind,
 			CodeActionTriggerKind: extHostTypes.CodeActionTriggerKind,
 			CodeLens: extHostTypes.CodeLens,
+			StyledCodeLens: extHostTypes.StyledCodeLens,
 			Color: extHostTypes.Color,
 			ColorInformation: extHostTypes.ColorInformation,
 			ColorPresentation: extHostTypes.ColorPresentation,

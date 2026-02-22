@@ -96,13 +96,41 @@ class CodeLensContentWidget implements IContentWidget {
 			hasSymbol = true;
 			if (lens.command) {
 				const title = renderLabelWithIcons(lens.command.title.trim());
+				let element: HTMLElement;
 				if (lens.command.id) {
 					const id = `c${(CodeLensContentWidget._idPool++)}`;
-					children.push(dom.$('a', { id, title: lens.command.tooltip, role: 'button' }, ...title));
+					element = dom.$('a', { id, title: lens.command.tooltip, role: 'button' }, ...title);
 					this._commands.set(id, lens.command);
 				} else {
-					children.push(dom.$('span', { title: lens.command.tooltip }, ...title));
+					element = dom.$('span', { title: lens.command.tooltip }, ...title);
 				}
+
+				// Apply StyledCodeLens render options
+				if (lens.renderOptions) {
+					const opts = lens.renderOptions;
+					if (opts.color) {
+						element.style.setProperty('--vscode-codelens-color', `var(--vscode-${opts.color.replace(/\./g, '-')})`);
+						element.style.color = `var(--vscode-codelens-color, var(--vscode-${opts.color.replace(/\./g, '-')}))`; // fallback to theme color
+					}
+					if (opts.fontSize) {
+						element.style.fontSize = `${opts.fontSize}px`;
+					}
+					if (opts.fontFamily) {
+						element.style.fontFamily = opts.fontFamily;
+					}
+					if (opts.indent) {
+						element.style.marginLeft = `${opts.indent}px`;
+					}
+					if (opts.actionPadding) {
+						element.style.paddingLeft = `${opts.actionPadding}px`;
+						element.style.paddingRight = `${opts.actionPadding}px`;
+					}
+					if (opts.borderColor) {
+						element.style.borderLeft = `2px solid var(--vscode-${opts.borderColor.replace(/\./g, '-')})`;
+					}
+				}
+
+				children.push(element);
 				if (i + 1 < lenses.length) {
 					children.push(dom.$('span', undefined, '\u00a0|\u00a0'));
 				}

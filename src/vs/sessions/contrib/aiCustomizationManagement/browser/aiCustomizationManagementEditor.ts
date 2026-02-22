@@ -49,7 +49,7 @@ import {
 	SIDEBAR_MAX_WIDTH,
 	CONTENT_MIN_WIDTH,
 } from './aiCustomizationManagement.js';
-import { agentIcon, instructionsIcon, promptIcon, skillIcon, hookIcon } from '../../aiCustomizationTreeView/browser/aiCustomizationTreeViewIcons.js';
+import { agentIcon, instructionsIcon, promptIcon, skillIcon, hookIcon, agentTeamsIcon, teamMemoryIcon } from '../../aiCustomizationTreeView/browser/aiCustomizationTreeViewIcons.js';
 import { ChatModelsWidget } from '../../../../workbench/contrib/chat/browser/chatManagement/chatModelsWidget.js';
 import { PromptsType } from '../../../../workbench/contrib/chat/common/promptSyntax/promptTypes.js';
 import { PromptsStorage } from '../../../../workbench/contrib/chat/common/promptSyntax/service/promptsService.js';
@@ -59,6 +59,7 @@ import { CustomizationCreatorService } from './customizationCreatorService.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
 import { IActiveSessionItem, ISessionsManagementService } from '../../sessions/browser/sessionsManagementService.js';
 import { IWorkingCopyService } from '../../../../workbench/services/workingCopy/common/workingCopyService.js';
+import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 
 const $ = DOM.$;
 
@@ -135,6 +136,8 @@ export class AICustomizationManagementEditor extends EditorPane {
 	private mcpContentContainer!: HTMLElement;
 	private modelsContentContainer!: HTMLElement;
 	private modelsFooterElement!: HTMLElement;
+	private agentTeamsContentContainer!: HTMLElement;
+	private teamMemoryContentContainer!: HTMLElement;
 
 	// Embedded editor state
 	private editorContentContainer!: HTMLElement;
@@ -175,6 +178,7 @@ export class AICustomizationManagementEditor extends EditorPane {
 		@ICommandService private readonly commandService: ICommandService,
 		@ISessionsManagementService private readonly activeSessionService: ISessionsManagementService,
 		@IWorkingCopyService private readonly workingCopyService: IWorkingCopyService,
+		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
 	) {
 		super(AICustomizationManagementEditor.ID, group, telemetryService, themeService, storageService);
 
@@ -203,6 +207,8 @@ export class AICustomizationManagementEditor extends EditorPane {
 			{ id: AICustomizationManagementSection.Instructions, label: localize('instructions', "Instructions"), icon: instructionsIcon },
 			{ id: AICustomizationManagementSection.Prompts, label: localize('prompts', "Prompts"), icon: promptIcon },
 			{ id: AICustomizationManagementSection.Hooks, label: localize('hooks', "Hooks"), icon: hookIcon },
+			{ id: AICustomizationManagementSection.AgentTeams, label: localize('agentTeams', "Agent Teams"), icon: agentTeamsIcon },
+			{ id: AICustomizationManagementSection.TeamMemory, label: localize('teamMemory', "Team Memory"), icon: teamMemoryIcon },
 			{ id: AICustomizationManagementSection.McpServers, label: localize('mcpServers', "MCP Servers"), icon: Codicon.server },
 			{ id: AICustomizationManagementSection.Models, label: localize('models', "Models"), icon: Codicon.vm },
 		);
@@ -382,6 +388,14 @@ export class AICustomizationManagementEditor extends EditorPane {
 		this.mcpListWidget = this.editorDisposables.add(this.instantiationService.createInstance(McpListWidget));
 		this.mcpContentContainer.appendChild(this.mcpListWidget.element);
 
+		// Container for Agent Teams content
+		this.agentTeamsContentContainer = DOM.append(contentInner, $('.agent-teams-content-container'));
+		this.createAgentTeamsContent();
+
+		// Container for Team Memory content
+		this.teamMemoryContentContainer = DOM.append(contentInner, $('.team-memory-content-container'));
+		this.createTeamMemoryContent();
+
 		// Container for embedded editor view
 		this.editorContentContainer = DOM.append(contentInner, $('.editor-content-container'));
 		this.createEmbeddedEditor();
@@ -443,11 +457,15 @@ export class AICustomizationManagementEditor extends EditorPane {
 		const isPromptsSection = this.isPromptsSection(this.selectedSection);
 		const isModelsSection = this.selectedSection === AICustomizationManagementSection.Models;
 		const isMcpSection = this.selectedSection === AICustomizationManagementSection.McpServers;
+		const isAgentTeamsSection = this.selectedSection === AICustomizationManagementSection.AgentTeams;
+		const isTeamMemorySection = this.selectedSection === AICustomizationManagementSection.TeamMemory;
 
 		// Hide all list containers when in editor mode
 		this.promptsContentContainer.style.display = !isEditorMode && isPromptsSection ? '' : 'none';
 		this.modelsContentContainer.style.display = !isEditorMode && isModelsSection ? '' : 'none';
 		this.mcpContentContainer.style.display = !isEditorMode && isMcpSection ? '' : 'none';
+		this.agentTeamsContentContainer.style.display = !isEditorMode && isAgentTeamsSection ? '' : 'none';
+		this.teamMemoryContentContainer.style.display = !isEditorMode && isTeamMemorySection ? '' : 'none';
 		this.editorContentContainer.style.display = isEditorMode ? '' : 'none';
 
 		// Render and layout models widget when switching to it
@@ -525,6 +543,148 @@ export class AICustomizationManagementEditor extends EditorPane {
 				// Use default contributions for full IntelliSense, completions, linting, etc.
 			}
 		));
+	}
+
+	/**
+	 * Creates the Agent Teams section content.
+	 * Shows team presets and per-agent model assignments.
+	 */
+	private createAgentTeamsContent(): void {
+		const header = DOM.append(this.agentTeamsContentContainer, $('.agent-teams-header'));
+		const title = DOM.append(header, $('h3.agent-teams-title'));
+		title.textContent = localize('agentTeamsTitle', "Agent Team Presets");
+		const subtitle = DOM.append(header, $('p.agent-teams-subtitle'));
+		subtitle.textContent = localize('agentTeamsSubtitle', "Assign models to each agent role. Apply a preset or customise individual agents, then save your configuration.");
+
+		// Preset buttons row
+		const presetsRow = DOM.append(this.agentTeamsContentContainer, $('.agent-teams-presets-row'));
+		const presetNames = [
+			{ name: 'Free Tier', icon: Codicon.sparkle, desc: 'Free models only' },
+			{ name: 'Balanced', icon: Codicon.dashboard, desc: 'Cost vs quality mix' },
+			{ name: 'Best Quality', icon: Codicon.starFull, desc: 'Premium models' },
+		];
+
+		for (const p of presetNames) {
+			const btn = DOM.append(presetsRow, $('button.agent-teams-preset-btn'));
+			const btnIcon = DOM.append(btn, $(`.codicon.codicon-${p.icon.id}`));
+			btnIcon.setAttribute('aria-hidden', 'true');
+			const btnLabel = DOM.append(btn, $('span'));
+			btnLabel.textContent = ` ${p.name}`;
+			btn.title = p.desc;
+			this.editorDisposables.add(DOM.addDisposableListener(btn, 'click', () => {
+				this.commandService.executeCommand('kiroAgentTeams.applyPreset');
+			}));
+		}
+
+		// Agent list (read-only summary of current assignments)
+		const agentsList = DOM.append(this.agentTeamsContentContainer, $('.agent-teams-agents-list'));
+		const agentRows = [
+			{ name: 'Orchestrator', role: 'Team coordinator', icon: Codicon.symbolEvent },
+			{ name: 'Analyser', role: 'Codebase analysis', icon: Codicon.search },
+			{ name: 'Planner', role: 'Implementation plans', icon: Codicon.listOrdered },
+			{ name: 'SkillAttributer', role: 'Task decomposition', icon: Codicon.tag },
+			{ name: 'Coder', role: 'Writes production code', icon: Codicon.code },
+		];
+
+		for (const a of agentRows) {
+			const row = DOM.append(agentsList, $('.agent-teams-agent-row'));
+			row.setAttribute('role', 'listitem');
+			const left = DOM.append(row, $('.agent-row-left'));
+			const icon = DOM.append(left, $(`.codicon.codicon-${a.icon.id}`));
+			icon.setAttribute('aria-hidden', 'true');
+			const nameEl = DOM.append(left, $('span.agent-row-name'));
+			nameEl.textContent = a.name;
+			const roleEl = DOM.append(left, $('span.agent-row-role'));
+			roleEl.textContent = a.role;
+			const right = DOM.append(row, $('.agent-row-right'));
+			const changeBtn = DOM.append(right, $('button.agent-row-change-btn'));
+			const changeBtnIcon = DOM.append(changeBtn, $(`.codicon.codicon-${Codicon.edit.id}`));
+			changeBtnIcon.setAttribute('aria-hidden', 'true');
+			const changeBtnLabel = DOM.append(changeBtn, $('span'));
+			changeBtnLabel.textContent = localize('changeModel', " Change Model");
+			this.editorDisposables.add(DOM.addDisposableListener(changeBtn, 'click', () => {
+				this.commandService.executeCommand('kiroAgentTeams.changeAgentModel');
+			}));
+		}
+
+		// Footer with description and links
+		const footer = DOM.append(this.agentTeamsContentContainer, $('.section-footer'));
+		const desc = DOM.append(footer, $('p.section-footer-description'));
+		desc.textContent = localize('agentTeamsFooter', "Team presets are stored in .github/teams/ as JSON files. Create custom presets by configuring agents individually and saving. The kiro-agent-teams extension panel provides advanced team management.");
+		const saveBtn = DOM.append(footer, $('button.agent-teams-save-btn'));
+		const saveBtnIcon = DOM.append(saveBtn, $(`.codicon.codicon-${Codicon.save.id}`));
+		saveBtnIcon.setAttribute('aria-hidden', 'true');
+		const saveBtnLabel = DOM.append(saveBtn, $('span'));
+		saveBtnLabel.textContent = localize('saveAsPreset', " Save Current as Preset");
+		this.editorDisposables.add(DOM.addDisposableListener(saveBtn, 'click', () => {
+			this.commandService.executeCommand('kiroAgentTeams.saveCustomPreset');
+		}));
+	}
+
+	/**
+	 * Creates the Team Memory section content.
+	 * Shows memory files with descriptions and quick-open buttons.
+	 */
+	private createTeamMemoryContent(): void {
+		const header = DOM.append(this.teamMemoryContentContainer, $('.team-memory-header'));
+		const title = DOM.append(header, $('h3.team-memory-title'));
+		title.textContent = localize('teamMemoryTitle', "Team Memory");
+		const subtitle = DOM.append(header, $('p.team-memory-subtitle'));
+		subtitle.textContent = localize('teamMemorySubtitle', "Persistent shared memory for the agent team. You can edit these files directly to add preferences, rules, or context. Agents also update memory automatically whenever they learn something important.");
+
+		// Memory file list
+		const filesList = DOM.append(this.teamMemoryContentContainer, $('.team-memory-files-list'));
+		const memoryFiles = [
+			{ file: 'architecture.md', desc: 'Architecture patterns & subsystem structure', icon: Codicon.symbolClass, writers: 'Analyser' },
+			{ file: 'conventions.md', desc: 'Coding style, naming rules, best practices', icon: Codicon.law, writers: 'Analyser, Coder' },
+			{ file: 'decisions.md', desc: 'Design decisions, trade-offs, rationale', icon: Codicon.git_compare, writers: 'Planner, Orchestrator' },
+			{ file: 'dependencies.md', desc: 'Module dependency maps & relationships', icon: Codicon.references, writers: 'Analyser' },
+			{ file: 'errors.md', desc: 'Known error patterns & verified fixes', icon: Codicon.bug, writers: 'Coder' },
+			{ file: 'missions.md', desc: 'Completed mission log with outcomes', icon: Codicon.history, writers: 'Orchestrator' },
+			{ file: 'user-preferences.md', desc: 'Your preferences & working style', icon: Codicon.account, writers: 'Orchestrator' },
+		];
+
+		for (const mf of memoryFiles) {
+			const row = DOM.append(filesList, $('.team-memory-file-row'));
+			row.setAttribute('role', 'listitem');
+
+			const left = DOM.append(row, $('.memory-file-left'));
+			const icon = DOM.append(left, $(`.codicon.codicon-${mf.icon.id}`));
+			icon.setAttribute('aria-hidden', 'true');
+			const nameEl = DOM.append(left, $('span.memory-file-name'));
+			nameEl.textContent = mf.file;
+			const descEl = DOM.append(left, $('span.memory-file-desc'));
+			descEl.textContent = mf.desc;
+
+			const right = DOM.append(row, $('.memory-file-right'));
+			const writersEl = DOM.append(right, $('span.memory-file-entries'));
+			writersEl.textContent = mf.writers;
+			const openBtn = DOM.append(right, $('button.memory-file-open-btn'));
+			openBtn.textContent = localize('openMemoryFile', "Open");
+			const memoryFilePath = `.github/memory/${mf.file}`;
+			this.editorDisposables.add(DOM.addDisposableListener(openBtn, 'click', () => {
+				this.commandService.executeCommand('vscode.open', URI.joinPath(this.workspaceContextService.getWorkspace().folders[0]?.uri ?? URI.file(''), memoryFilePath));
+			}));
+		}
+
+		// Footer with description
+		const footer = DOM.append(this.teamMemoryContentContainer, $('.section-footer'));
+		const desc = DOM.append(footer, $('p.section-footer-description'));
+		desc.textContent = localize('teamMemoryFooter', "Memory files are standard Markdown in .github/memory/. Edit them directly to add your own entries — your edits are authoritative and always take priority over agent-written entries. Agents update memory in real-time during work whenever they receive important information.");
+
+		// Action buttons row
+		const actions = DOM.append(this.teamMemoryContentContainer, $('.team-memory-actions'));
+		const openAllBtn = DOM.append(actions, $('button.team-memory-action-btn'));
+		const openAllIcon = DOM.append(openAllBtn, $(`.codicon.codicon-${Codicon.folderOpened.id}`));
+		openAllIcon.setAttribute('aria-hidden', 'true');
+		const openAllLabel = DOM.append(openAllBtn, $('span'));
+		openAllLabel.textContent = localize('openMemoryFolder', " Open Memory Folder");
+		this.editorDisposables.add(DOM.addDisposableListener(openAllBtn, 'click', () => {
+			const folder = this.workspaceContextService.getWorkspace().folders[0]?.uri;
+			if (folder) {
+				this.commandService.executeCommand('revealInExplorer', URI.joinPath(folder, '.github/memory'));
+			}
+		}));
 	}
 
 	/**

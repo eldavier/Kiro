@@ -445,9 +445,7 @@ class NewChatWidget extends Disposable {
 		dom.append(attachButton, renderIcon(Codicon.add));
 		this._register(dom.addDisposableListener(attachButton, dom.EventType.CLICK, () => {
 			const folderUri = this._selectedFolderUri ?? this.workspaceContextService.getWorkspace().folders[0]?.uri;
-			{
-			this._contextAttachments.showPicker(this._getContextFolderUri(folderUri);
-		});
+			this._contextAttachments.showPicker(this._getContextFolderUri(folderUri));
 		}));
 	}
 

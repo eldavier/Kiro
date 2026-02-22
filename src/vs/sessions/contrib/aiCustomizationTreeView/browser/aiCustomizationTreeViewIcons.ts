@@ -38,6 +38,16 @@ export const promptIcon = registerIcon('ai-customization-prompt', Codicon.bookma
 export const hookIcon = registerIcon('ai-customization-hook', Codicon.zap, localize('aiCustomizationHookIcon', "Icon for hooks."));
 
 /**
+ * Icon for agent teams.
+ */
+export const agentTeamsIcon = registerIcon('ai-customization-agent-teams', Codicon.organization, localize('aiCustomizationAgentTeamsIcon', "Icon for agent team presets."));
+
+/**
+ * Icon for team memory.
+ */
+export const teamMemoryIcon = registerIcon('ai-customization-team-memory', Codicon.database, localize('aiCustomizationTeamMemoryIcon', "Icon for team shared memory."));
+
+/**
  * Icon for adding a new item.
  */
 export const addIcon = registerIcon('ai-customization-add', Codicon.add, localize('aiCustomizationAddIcon', "Icon for adding new items."));

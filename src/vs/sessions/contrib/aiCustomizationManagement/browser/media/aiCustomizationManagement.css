@@ -761,3 +761,303 @@
 .ai-customization-management-editor .embedded-editor-container .monaco-editor {
 	border-radius: 4px;
 }
+
+/* ── Agent Teams Section ────────────────────────────────────────────────── */
+
+.ai-customization-management-editor .agent-teams-content-container {
+	padding: 16px;
+	overflow-y: auto;
+	height: 100%;
+}
+
+.agent-teams-header {
+	margin-bottom: 16px;
+}
+
+.agent-teams-title {
+	margin: 0 0 4px;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--vscode-foreground);
+}
+
+.agent-teams-subtitle {
+	margin: 0;
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+	line-height: 1.4;
+}
+
+/* Preset buttons */
+.agent-teams-presets-row {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 20px;
+	flex-wrap: wrap;
+}
+
+.agent-teams-preset-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 14px;
+	border: 1px solid var(--vscode-button-secondaryBorder, var(--vscode-widget-border));
+	border-radius: 4px;
+	background: var(--vscode-button-secondaryBackground);
+	color: var(--vscode-button-secondaryForeground);
+	cursor: pointer;
+	font-size: 12px;
+	transition: background-color 0.15s ease;
+}
+
+.agent-teams-preset-btn:hover {
+	background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Agent list */
+.agent-teams-agents-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-bottom: 20px;
+}
+
+.agent-teams-agent-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-radius: 4px;
+	background: var(--vscode-list-hoverBackground);
+	transition: background-color 0.1s ease;
+}
+
+.agent-teams-agent-row:hover {
+	background: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground);
+}
+
+.agent-row-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.agent-row-name {
+	font-weight: 600;
+	font-size: 13px;
+	min-width: 120px;
+}
+
+.agent-row-role {
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+}
+
+.agent-row-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.agent-row-change-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 3px 8px;
+	border: 1px solid var(--vscode-widget-border);
+	border-radius: 3px;
+	background: transparent;
+	color: var(--vscode-foreground);
+	cursor: pointer;
+	font-size: 11px;
+	opacity: 0.7;
+	transition: opacity 0.1s ease;
+}
+
+.agent-teams-agent-row:hover .agent-row-change-btn {
+	opacity: 1;
+}
+
+.agent-row-change-btn:hover {
+	background: var(--vscode-button-secondaryBackground);
+}
+
+/* Save button */
+.agent-teams-save-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 14px;
+	margin-top: 8px;
+	border: 1px solid var(--vscode-button-border, var(--vscode-widget-border));
+	border-radius: 4px;
+	background: var(--vscode-button-background);
+	color: var(--vscode-button-foreground);
+	cursor: pointer;
+	font-size: 12px;
+	transition: background-color 0.15s ease;
+}
+
+.agent-teams-save-btn:hover {
+	background: var(--vscode-button-hoverBackground);
+}
+
+/* ─── Team Memory Section ────────────────────────────────────────────────────── */
+
+.ai-customization-management-editor .team-memory-content-container {
+	padding: 16px 20px;
+	display: none;
+}
+
+.team-memory-header {
+	margin-bottom: 16px;
+}
+
+.team-memory-title {
+	font-size: 16px;
+	font-weight: 600;
+	margin: 0 0 4px 0;
+	color: var(--vscode-foreground);
+}
+
+.team-memory-subtitle {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+	margin: 0;
+}
+
+.team-memory-stats {
+	display: flex;
+	gap: 12px;
+	margin-bottom: 16px;
+	flex-wrap: wrap;
+}
+
+.team-memory-stat-card {
+	background: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-widget-border);
+	border-radius: 6px;
+	padding: 10px 14px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 140px;
+}
+
+.team-memory-stat-card .stat-count {
+	font-size: 20px;
+	font-weight: 700;
+	color: var(--vscode-textLink-foreground);
+}
+
+.team-memory-stat-card .stat-label {
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+}
+
+.team-memory-files-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-bottom: 16px;
+}
+
+.team-memory-file-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-radius: 4px;
+	background: var(--vscode-editor-background);
+	border: 1px solid transparent;
+	transition: border-color 0.15s ease;
+}
+
+.team-memory-file-row:hover {
+	border-color: var(--vscode-focusBorder);
+}
+
+.memory-file-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+}
+
+.memory-file-left .codicon {
+	color: var(--vscode-textLink-foreground);
+	font-size: 14px;
+}
+
+.memory-file-name {
+	font-weight: 500;
+	font-size: 13px;
+	color: var(--vscode-foreground);
+}
+
+.memory-file-desc {
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	margin-left: 8px;
+}
+
+.memory-file-right {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.memory-file-entries {
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	background: var(--vscode-badge-background);
+	color: var(--vscode-badge-foreground);
+	padding: 1px 6px;
+	border-radius: 8px;
+}
+
+.memory-file-open-btn {
+	background: transparent;
+	border: 1px solid var(--vscode-button-secondaryBackground);
+	color: var(--vscode-foreground);
+	border-radius: 4px;
+	padding: 3px 8px;
+	cursor: pointer;
+	font-size: 11px;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.team-memory-file-row:hover .memory-file-open-btn {
+	opacity: 1;
+}
+
+.memory-file-open-btn:hover {
+	background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.team-memory-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.team-memory-action-btn {
+	background: var(--vscode-button-secondaryBackground);
+	color: var(--vscode-button-secondaryForeground);
+	border: none;
+	border-radius: 4px;
+	padding: 6px 12px;
+	cursor: pointer;
+	font-size: 12px;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	transition: background-color 0.15s ease;
+}
+
+.team-memory-action-btn:hover {
+	background: var(--vscode-button-secondaryHoverBackground);
+}

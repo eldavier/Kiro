@@ -632,7 +632,11 @@ export class OutputMonitor extends Disposable implements IOutputMonitor {
 			return undefined;
 		}
 
-		const models = await this._languageModelsService.selectLanguageModels({ vendor: 'copilot', family: model.replaceAll('copilot/', '') });
+		// Try copilot vendor first, then fall back to any available model
+		let models = await this._languageModelsService.selectLanguageModels({ vendor: 'copilot', family: model.replaceAll('copilot/', '') });
+		if (!models.length) {
+			models = await this._languageModelsService.selectLanguageModels({});
+		}
 		if (!models.length) {
 			return undefined;
 		}
@@ -923,7 +927,11 @@ export class OutputMonitor extends Disposable implements IOutputMonitor {
 	}
 
 	private async _getLanguageModel(): Promise<string | undefined> {
-		const models = await this._languageModelsService.selectLanguageModels({ vendor: 'copilot', id: 'copilot-fast' });
+		// Try copilot vendor first, then fall back to any available model
+		let models = await this._languageModelsService.selectLanguageModels({ vendor: 'copilot', id: 'copilot-fast' });
+		if (!models.length) {
+			models = await this._languageModelsService.selectLanguageModels({});
+		}
 		return models.length ? models[0] : undefined;
 	}
 }

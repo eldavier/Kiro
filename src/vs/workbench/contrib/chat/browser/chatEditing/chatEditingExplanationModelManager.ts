@@ -238,7 +238,11 @@ export class ChatEditingExplanationModelManager extends Disposable implements IC
 
 		try {
 			// Select a model for understanding all changes together
-			const models = await this._languageModelsService.selectLanguageModels({ vendor: 'copilot', id: 'copilot-fast' });
+			// Try copilot vendor first (GitHub Copilot), then fall back to any available model
+			let models = await this._languageModelsService.selectLanguageModels({ vendor: 'copilot', id: 'copilot-fast' });
+			if (!models.length) {
+				models = await this._languageModelsService.selectLanguageModels({});
+			}
 			if (!models.length) {
 				for (const fileData of fileChanges) {
 					this._updateUriStatePartial(fileData.uri, {

@@ -1,0 +1,28 @@
+{
+  "$schema": "./team-preset.schema.json",
+  "name": "Balanced",
+  "description": "Smart mix of cost and quality. Premium models where reasoning matters most (Coder, Analyser), efficient models for coordination.",
+  "icon": "dashboard",
+  "agents": {
+    "Orchestrator": {
+      "model": ["gpt-4o-mini", "claude-sonnet-4-6-20260221", "gemini-2.0-flash"],
+      "reason": "Coordination is straightforward — GPT-4o-mini (fast + cheap), Claude Sonnet, or Gemini Flash"
+    },
+    "Analyser": {
+      "model": ["claude-sonnet-4-6-20260221", "gpt-4o", "gemini-2.0-pro"],
+      "reason": "Analysis needs good reasoning — Claude Sonnet 4.6, GPT-4o, or Gemini Pro"
+    },
+    "Planner": {
+      "model": ["claude-sonnet-4-6-20260221", "gpt-4o", "deepseek-chat"],
+      "reason": "Planning benefits from strong models — Claude Sonnet 4.6, GPT-4o, or DeepSeek V3"
+    },
+    "SkillAttributer": {
+      "model": ["gpt-4o-mini", "claude-sonnet-4-6-20260221", "gemini-2.0-flash"],
+      "reason": "Task decomposition — GPT-4o-mini (efficient), Claude Sonnet, or Gemini Flash"
+    },
+    "Coder": {
+      "model": ["claude-sonnet-4-6-20260221", "gpt-4o", "deepseek-chat"],
+      "reason": "Coding quality matters — Claude Sonnet 4.6 (excellent coder), GPT-4o, or DeepSeek V3"
+    }
+  }
+}

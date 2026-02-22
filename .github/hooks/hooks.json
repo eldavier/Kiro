@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "echo [TEAM] Session started at %DATE% %TIME% - Agent team ready",
+        "windows": "Write-Host \"[TEAM] Session started at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Agent team (Orchestrator, Analyser, Planner, SkillAttributer, Coder) ready\"",
+        "timeout": 5
+      }
+    ],
+    "SubagentStart": [
+      {
+        "type": "command",
+        "command": "echo [TEAM] Subagent starting at $(date +%H:%M:%S)",
+        "windows": "Write-Host \"[TEAM] Subagent starting at $(Get-Date -Format 'HH:mm:ss')\"",
+        "timeout": 5
+      }
+    ],
+    "SubagentStop": [
+      {
+        "type": "command",
+        "command": "echo [TEAM] Subagent completed at $(date +%H:%M:%S)",
+        "windows": "Write-Host \"[TEAM] Subagent completed at $(Get-Date -Format 'HH:mm:ss')\"",
+        "timeout": 5
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "echo [TEAM] Session ended at %DATE% %TIME%",
+        "windows": "Write-Host \"[TEAM] Session ended at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')\"",
+        "timeout": 5
+      }
+    ]
+  }
+}

@@ -36,7 +36,7 @@ import { ExtHostDiagnostics } from './extHostDiagnostics.js';
 import { ExtHostDocuments } from './extHostDocuments.js';
 import { ExtHostTelemetry, IExtHostTelemetry } from './extHostTelemetry.js';
 import * as typeConvert from './extHostTypeConverters.js';
-import { CodeAction, CodeActionKind, CompletionList, DataTransfer, Disposable, DocumentDropOrPasteEditKind, DocumentSymbol, InlineCompletionsDisposeReasonKind, InlineCompletionTriggerKind, InternalDataTransferItem, Location, NewSymbolNameTriggerKind, Range, SemanticTokens, SemanticTokensEdit, SemanticTokensEdits, SnippetString, SymbolInformation, SyntaxTokenType } from './extHostTypes.js';
+import { CodeAction, CodeActionKind, CompletionList, DataTransfer, Disposable, DocumentDropOrPasteEditKind, DocumentSymbol, InlineCompletionsDisposeReasonKind, InlineCompletionTriggerKind, InternalDataTransferItem, Location, NewSymbolNameTriggerKind, Range, SemanticTokens, SemanticTokensEdit, SemanticTokensEdits, SnippetString, StyledCodeLens, SymbolInformation, SyntaxTokenType } from './extHostTypes.js';
 import { Emitter } from '../../../base/common/event.js';
 import { IInlineCompletionsUnificationState } from '../../services/inlineCompletions/common/inlineCompletionsUnification.js';
 
@@ -142,7 +142,18 @@ class CodeLensAdapter {
 			result.lenses.push({
 				cacheId: [cacheId, i],
 				range: typeConvert.Range.from(lenses[i].range),
-				command: this._commands.toInternal(lenses[i].command, disposables)
+				command: this._commands.toInternal(lenses[i].command, disposables),
+				...(lenses[i] instanceof StyledCodeLens ? {
+					renderOptions: {
+						color: lenses[i].renderOptions?.color?.id ?? undefined,
+						borderColor: lenses[i].renderOptions?.borderColor?.id ?? undefined,
+						fontSize: lenses[i].renderOptions?.fontSize,
+						iconSize: lenses[i].renderOptions?.iconSize,
+						actionPadding: lenses[i].renderOptions?.actionPadding,
+						fontFamily: lenses[i].renderOptions?.fontFamily,
+						indent: lenses[i].renderOptions?.indent,
+					}
+				} : {})
 			});
 		}
 		return result;

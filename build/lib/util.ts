@@ -298,13 +298,36 @@ export function rimraf(dir: string): () => Promise<void> {
 		let retries = 0;
 
 		const retry = () => {
-			_rimraf(dir, { maxBusyTries: 1 }, (err: any) => {
+			_rimraf(dir, { maxBusyTries: 3 }, (err: any) => {
 				if (!err) {
 					return c();
 				}
 
 				if (err.code === 'ENOTEMPTY' && ++retries < 5) {
 					return setTimeout(() => retry(), 10);
+				}
+
+				// If the directory is locked (e.g. VS Code file watcher, Windows indexer, AV),
+				// try to rename it aside and create a fresh directory.
+				if (err.code === 'EBUSY' || err.code === 'EPERM') {
+					try {
+						const entries = fs.readdirSync(dir);
+						if (entries.length === 0) {
+							return c(); // empty but locked → ok
+						}
+					} catch { /* ignore */ }
+
+					// Try renaming the locked dir aside
+					const aside = `${dir}-old-${Date.now()}`;
+					try {
+						fs.renameSync(dir, aside);
+						console.log(`[rimraf] Renamed locked dir to ${aside}`);
+						return c();
+					} catch {
+						// Rename also failed — tolerate and let build overwrite in-place
+						console.warn(`[rimraf] Cannot remove or rename ${dir} (EBUSY) — proceeding anyway`);
+						return c();
+					}
 				}
 
 				return e(err);
