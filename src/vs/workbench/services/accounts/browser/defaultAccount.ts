@@ -633,7 +633,14 @@ class DefaultAccountProvider extends Disposable implements IDefaultAccountProvid
 		const authProvider = this.getDefaultAccountAuthenticationProvider();
 		if (authProvider.id === 'kiro') {
 			this.logService.debug('[DefaultAccount] Kiro auth provider — returning default entitlements (skipping GitHub API)');
-			return { individual: true } as IEntitlementsData;
+			return {
+				access_type_sku: 'kiro',
+				assigned_date: new Date().toISOString(),
+				can_signup_for_limited: false,
+				copilot_plan: 'kiro',
+				organization_login_list: [],
+				analytics_tracking_id: 'kiro-local',
+			} as IEntitlementsData;
 		}
 
 		const entitlementUrl = this.getEntitlementUrl();
