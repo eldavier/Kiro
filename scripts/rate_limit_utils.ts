@@ -5,9 +5,8 @@
 
 import { Octokit } from "@octokit/rest";
 
-// 0 = never pause for rate limits (default: unrestricted)
-const RATE_LIMIT_THRESHOLD = parseInt(process.env.RATE_LIMIT_THRESHOLD || "0", 10);
-const RATE_LIMIT_CHECK_INTERVAL = parseInt(process.env.RATE_LIMIT_CHECK_INTERVAL || "10", 10);
+const RATE_LIMIT_THRESHOLD = 100; // Pause when remaining requests < this
+const RATE_LIMIT_CHECK_INTERVAL = 10; // Check every N requests
 
 let requestCount = 0;
 
@@ -36,7 +35,7 @@ export async function checkRateLimit(client: Octokit): Promise<void> {
 
     console.log(`Rate limit: ${remaining} requests remaining`);
 
-    if (RATE_LIMIT_THRESHOLD > 0 && remaining < RATE_LIMIT_THRESHOLD) {
+    if (remaining < RATE_LIMIT_THRESHOLD) {
       const now = new Date();
       const waitMs = resetTime.getTime() - now.getTime();
 

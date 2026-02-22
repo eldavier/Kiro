@@ -46,7 +46,7 @@ async function testDuplicateDetection() {
   ];
 
   let totalDuplicates = 0;
-  const totalTests = testCases.length;
+  let totalTests = testCases.length;
 
   for (const testCase of testCases) {
     console.log("─".repeat(60));

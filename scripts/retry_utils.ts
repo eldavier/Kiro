@@ -10,9 +10,9 @@ export interface RetryOptions {
 }
 
 const DEFAULT_OPTIONS: Required<RetryOptions> = {
-  maxRetries: parseInt(process.env.MAX_RETRIES || "0", 10) || Infinity,
-  baseDelay: parseInt(process.env.RETRY_BASE_DELAY_MS || "1000", 10),
-  maxDelay: parseInt(process.env.RETRY_MAX_DELAY_MS || "0", 10) || Infinity,
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 8000, // 8 seconds
   retryableErrors: ["ThrottlingException", "ServiceUnavailable", "ECONNRESET", "ETIMEDOUT"],
 };
 
@@ -34,14 +34,13 @@ function calculateDelay(attempt: number, baseDelay: number, maxDelay: number): n
 /**
  * Check if error is retryable
  */
-function isRetryableError(error: unknown, retryableErrors: string[]): boolean {
+function isRetryableError(error: any, retryableErrors: string[]): boolean {
   if (!error) return false;
 
-  const errorObj = error as Record<string, unknown>;
-  const errorString = String(error);
-  const errorName = String(errorObj.name || "");
-  const errorCode = String(errorObj.code || "");
-  const errorStatus = String(errorObj.status || "");
+  const errorString = error.toString();
+  const errorName = error.name || "";
+  const errorCode = String(error.code || "");
+  const errorStatus = String(error.status || "");
 
   return retryableErrors.some(
     (retryable) =>
@@ -60,7 +59,7 @@ export async function retryWithBackoff<T>(
   options: RetryOptions = {}
 ): Promise<T> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  let lastError: unknown;
+  let lastError: any;
 
   for (let attempt = 0; attempt <= opts.maxRetries; attempt++) {
     try {

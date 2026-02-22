@@ -17,7 +17,6 @@ import {
   generateAcknowledgmentComment,
   getFallbackComment,
 } from "./bedrock_comment_generator.js";
-import { printUsageSummary } from "./model_costs.js";
 
 /**
  * Post initial acknowledgment comment on new issue
@@ -47,7 +46,7 @@ async function postAcknowledgmentComment(
         classification,
         githubToken
       );
-    } catch {
+    } catch (error) {
       console.warn("Failed to generate comment with Bedrock, using fallback");
       comment = getFallbackComment();
     }
@@ -164,31 +163,11 @@ async function main() {
     // Only classify and assign labels if NOT a duplicate
     if (!isDuplicate) {
       // Step 2: Classify issue using Bedrock
-      console.log("\nStep 2: Classifying issue with AI provider...");
+      console.log("\nStep 2: Classifying issue with AWS Bedrock...");
       let classification;
       try {
         classification = await classifyIssue(issueTitle, issueBody, taxonomy);
 
-        if (classification.error) {
-          console.error(`Classification error: ${classification.error}`);
-          console.log("Continuing with manual triage (pending-triage label only)");
-          logError(summary.errors, "classification", classification.error, issueNumber);
-        } else {
-          console.log(
-            `Recommended labels: ${classification.recommended_labels.join(", ")}`
-          );
-          console.log(`Reasoning: ${classification.reasoning}`);
-        }
-      } catch (error) {
-        console.error("Classification failed:", error);
-        logError(summary.errors, "classification", error, issueNumber);
-        classification = {
-          recommended_labels: [],
-          confidence_scores: {},
-          reasoning: "",
-          error: String(error),
-        };
-      }
         if (classification.error) {
           console.error(`Classification error: ${classification.error}`);
           console.log("Continuing with manual triage (pending-triage label only)");
@@ -261,7 +240,6 @@ async function main() {
     }
 
     createSummary(summary);
-    printUsageSummary();
     process.exit(summary.success ? 0 : 1);
   } catch (error) {
     console.error("\n=== Triage Failed ===");
@@ -270,7 +248,6 @@ async function main() {
     summary.success = false;
     summary.failureCount = 1;
     createSummary(summary);
-    printUsageSummary();
     process.exit(1);
   }
 }
