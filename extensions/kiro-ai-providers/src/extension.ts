@@ -419,60 +419,7 @@ function awsSigV4Sign(request: {
     };
 }
 
-// ── GitHub Copilot token exchange ────────────────────────────────────────────
 
-interface CopilotTokenData {
-    token: string;
-    apiEndpoint: string;
-    expiresAt: number;
-}
-
-let copilotTokenCache: CopilotTokenData | null = null;
-
-async function getCopilotToken(): Promise<CopilotTokenData | null> {
-    // Return cached token if still valid (with 5 minute buffer)
-    if (copilotTokenCache && copilotTokenCache.expiresAt > Date.now() / 1000 + 300) {
-        return copilotTokenCache;
-    }
-
-    // Try to get existing GitHub auth session (don't prompt for sign-in)
-    let session: vscode.AuthenticationSession | undefined;
-    try {
-        session = await vscode.authentication.getSession('github', ['read:user'], { createIfNone: false });
-    } catch {
-        // No GitHub session available
-    }
-    if (!session) { return null; }
-
-    // Exchange GitHub OAuth token for Copilot API token
-    try {
-        const response = await fetch('https://api.github.com/copilot_internal/v2/token', {
-            headers: {
-                'Authorization': `token ${session.accessToken}`,
-                'Accept': 'application/json',
-                'Editor-Version': 'vscode/1.90.0',
-                'Editor-Plugin-Version': 'kiro/1.0.0',
-                'User-Agent': 'Kiro/1.0.0',
-            },
-            signal: AbortSignal.timeout(10_000),
-        });
-        if (!response.ok) {
-            console.warn(`[Kiro AI] Copilot token exchange failed: ${response.status}`);
-            return null;
-        }
-        const data = await response.json() as { token: string; expires_at: number; endpoints?: { api?: string } };
-        copilotTokenCache = {
-            token: data.token,
-            apiEndpoint: data.endpoints?.api || 'https://api.individual.githubcopilot.com',
-            expiresAt: data.expires_at,
-        };
-        console.log(`[Kiro AI] Copilot token acquired, endpoint: ${copilotTokenCache.apiEndpoint}`);
-        return copilotTokenCache;
-    } catch (err) {
-        console.warn('[Kiro AI] Copilot token exchange error:', err);
-        return null;
-    }
-}
 
 // ── Provider definitions ─────────────────────────────────────────────────────
 
@@ -977,79 +924,6 @@ function buildProviders(): ProviderDef[] {
             },
             // Non-streaming: Bedrock Converse uses AWS event stream framing (not standard SSE)
             signedBody: true, // Body is SigV4-signed — must not be modified after buildRequest
-        },
-
-        // ─ GitHub Copilot (Premium) ──────────────────────────────────────────
-        {
-            vendor: 'github-copilot',
-            displayName: 'GitHub Copilot',
-            async fetchModels(): Promise<DynamicModel[]> {
-                const tokenData = await getCopilotToken();
-                if (!tokenData) { return []; }
-
-                interface CopilotModel {
-                    id: string; name?: string; version?: string;
-                    capabilities?: { family?: string; type?: string };
-                    model_picker_enabled?: boolean;
-                }
-
-                try {
-                    const resp = await fetch(`${tokenData.apiEndpoint}/models`, {
-                        headers: {
-                            'Authorization': `Bearer ${tokenData.token}`,
-                            'Accept': 'application/json',
-                            'Editor-Version': 'vscode/1.90.0',
-                            'Copilot-Integration-Id': 'vscode-chat',
-                            'User-Agent': 'Kiro/1.0.0',
-                        },
-                        signal: AbortSignal.timeout(10_000),
-                    });
-                    if (!resp.ok) {
-                        console.warn(`[Kiro AI] Copilot model list failed: ${resp.status}`);
-                        return [];
-                    }
-                    const data = await resp.json() as { data?: CopilotModel[]; models?: CopilotModel[] };
-                    const models = data.data || data.models || [];
-                    if (!models.length) { return []; }
-
-                    return models
-                        .filter(m => !m.capabilities?.type || m.capabilities.type === 'chat')
-                        .map(m => ({
-                            id: m.id,
-                            name: m.name || m.id,
-                            family: m.capabilities?.family || m.id.split('-')[0],
-                            version: m.version || '1.0',
-                            maxInput: /^o[134]/.test(m.id) ? 200_000 : 128_000,
-                            maxOutput: /^o[134]/.test(m.id) ? 100_000 : 16_384,
-                            toolCalling: true,
-                        }));
-                } catch (err) {
-                    console.warn('[Kiro AI] Copilot model list error:', err);
-                    return [];
-                }
-            },
-            buildRequest(modelId, msgs, maxTokens, temperature) {
-                if (!copilotTokenCache) { return null; }
-                return {
-                    url: `${copilotTokenCache.apiEndpoint}/chat/completions`,
-                    init: {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${copilotTokenCache.token}`,
-                            'Content-Type': 'application/json',
-                            'Editor-Version': 'vscode/1.90.0',
-                            'Copilot-Integration-Id': 'vscode-chat',
-                            'User-Agent': 'Kiro/1.0.0',
-                        },
-                        body: JSON.stringify({
-                            model: modelId, stream: true, max_tokens: maxTokens, temperature,
-                            messages: msgs.map(m => ({ role: m.role, content: m.content })),
-                        }),
-                    },
-                };
-            },
-            extractText: extractOpenAIText,
-            stream: true,
         },
 
         // ─ Google Vertex AI (Claude + Gemini on GCP) ─────────────────────────
@@ -1827,5 +1701,4 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     modelCache.clear();
-    copilotTokenCache = null;
 }

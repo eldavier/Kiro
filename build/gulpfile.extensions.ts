@@ -93,7 +93,6 @@ const compilations = [
 	'extensions/vscode-colorize-perf-tests/tsconfig.json',
 	'extensions/vscode-test-resolver/tsconfig.json',
 	'extensions/kiro-ai-providers/tsconfig.json',
-	'extensions/kiro-authentication/tsconfig.json',
 	'extensions/kiro-agent-teams/tsconfig.json',
 
 	'.vscode/extensions/vscode-selfhost-test-provider/tsconfig.json',

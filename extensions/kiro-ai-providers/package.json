@@ -1,7 +1,7 @@
 {
   "name": "kiro-ai-providers",
   "displayName": "Kiro AI Providers",
-  "description": "Provides custom AI models for Kiro Chat (Anthropic, OpenAI, GitHub Models, GitHub Copilot, OpenRouter, Gemini, Vertex AI, Azure OpenAI, Groq, DeepSeek, Ollama, Bedrock, HuggingFace, Perplexity, Requesty, Vercel AI, You.com Pro)",
+  "description": "Provides custom AI models for Kiro Chat (Anthropic, OpenAI, GitHub Models, OpenRouter, Gemini, Vertex AI, Azure OpenAI, Groq, DeepSeek, Ollama, Bedrock, HuggingFace, Perplexity, Requesty, Vercel AI, You.com Pro)",
   "version": "1.0.0",
   "publisher": "kiro",
   "engines": {
@@ -100,13 +100,6 @@
           "properties": {
             "endpoint": { "type": "string", "description": "Ollama endpoint URL (e.g. http://localhost:11434)" }
           }
-        }
-      },
-      {
-        "vendor": "github-copilot",
-        "displayName": "GitHub Copilot",
-        "configuration": {
-          "properties": {}
         }
       },
       {
